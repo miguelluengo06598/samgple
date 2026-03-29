@@ -101,47 +101,85 @@ Responde SIEMPRE en JSON válido, sin texto adicional, sin markdown.`,
 function buildPrompt(input: AIAnalysisInput): string {
   const { order, customer, products, base_score, risk_signals } = input
 
-  const customerInfo = customer
-    ? `- Nombre: ${customer.first_name ?? ''} ${customer.last_name ?? ''}
-- Pedidos totales: ${customer.total_orders}
-- Entregados: ${customer.total_delivered}
-- Cancelados: ${customer.total_cancelled}
-- Devueltos: ${customer.total_returned}`
-    : '- Cliente nuevo sin historial'
-
   const productList = products
     .map(p => `  · ${p.name} x${p.quantity} — ${p.price}€`)
     .join('\n')
 
   const address = order.shipping_address
-    ? `${order.shipping_address.address1 ?? ''}, ${order.shipping_address.city ?? ''}, ${order.shipping_address.zip ?? ''}`
+    ? `${order.shipping_address.address1 ?? ''}, ${order.shipping_address.city ?? ''}, ${order.shipping_address.zip ?? ''}, ${order.shipping_address.country ?? ''}`
     : 'No disponible'
 
-  return `Analiza este pedido COD y devuelve un JSON con esta estructura exacta:
+  // Análisis profundo del historial
+  let customerAnalysis = ''
+  if (!customer || customer.total_orders === 0) {
+    customerAnalysis = `CLIENTE NUEVO — sin historial previo. Mayor incertidumbre.`
+  } else {
+    const deliveryRate = customer.total_orders > 0
+      ? Math.round((customer.total_delivered / customer.total_orders) * 100)
+      : 0
+    const cancelRate = customer.total_orders > 0
+      ? Math.round((customer.total_cancelled / customer.total_orders) * 100)
+      : 0
+    const returnRate = customer.total_orders > 0
+      ? Math.round((customer.total_returned / customer.total_orders) * 100)
+      : 0
+
+    const trend = deliveryRate >= 80
+      ? '✅ Cliente fiable con buen historial de entregas'
+      : deliveryRate >= 50
+      ? '⚠️ Cliente con historial mixto'
+      : '🔴 Cliente con historial problemático — muchas no entregas'
+
+    customerAnalysis = `
+- Total pedidos: ${customer.total_orders}
+- Entregados: ${customer.total_delivered} (${deliveryRate}%)
+- Cancelados: ${customer.total_cancelled} (${cancelRate}%)
+- Devueltos: ${customer.total_returned} (${returnRate}%)
+- Valoración: ${trend}
+${cancelRate > 30 ? '⚠️ ALERTA: Tasa de cancelación alta — cliente problemático' : ''}
+${returnRate > 30 ? '⚠️ ALERTA: Tasa de devolución alta' : ''}
+${deliveryRate < 40 && customer.total_orders >= 3 ? '🔴 ALERTA CRÍTICA: Menos del 40% de entregas exitosas' : ''}`
+  }
+
+  return `Eres un experto en análisis de riesgo de pedidos COD (contra reembolso) para eCommerce español.
+Analiza este pedido y devuelve ÚNICAMENTE un JSON válido con esta estructura exacta, sin texto adicional:
+
 {
-  "ai_score": número entre 0 y 100 (tu evaluación del riesgo),
-  "summary": "resumen breve del pedido en 1 frase",
-  "human_explanation": "explicación clara del riesgo para el operador, máximo 3 frases",
-  "recommendation": "qué debería hacer el operador: confirmar, llamar, cancelar, etc.",
-  "customer_message": "mensaje natural para enviar al cliente por WhatsApp confirmando o pidiendo datos",
-  "tags": ["array", "de", "tags", "relevantes"]
+  "ai_score": número 0-100 (tu evaluación del riesgo — 0=sin riesgo, 100=riesgo máximo),
+  "summary": "1 frase resumiendo el pedido y su riesgo principal",
+  "human_explanation": "explicación clara para el operador en 2-3 frases. Menciona los factores más relevantes del historial y la dirección",
+  "recommendation": "acción concreta: CONFIRMAR / LLAMAR PARA VERIFICAR / CANCELAR + motivo breve",
+  "customer_message": "mensaje natural en español para enviar por WhatsApp al cliente. Debe sonar humano, no robótico. Adaptado al contexto del pedido.",
+  "tags": ["array de tags relevantes, máximo 6, en español, formato snake_case"]
 }
 
-DATOS DEL PEDIDO:
-- Número: ${order.order_number ?? order.id}
-- Importe: ${order.total_price}€
-- Teléfono: ${order.phone ?? 'No disponible'}
-- Dirección: ${address}
-- Notas: ${order.notes ?? 'Ninguna'}
+═══ DATOS DEL PEDIDO ═══
+Número: ${order.order_number ?? order.id}
+Importe: ${order.total_price}€
+Teléfono: ${order.phone ?? 'No disponible'}
+Dirección de entrega: ${address}
+Notas del cliente: ${order.notes ?? 'Ninguna'}
+Estado actual: ${order.status}
 
-PRODUCTOS:
+═══ PRODUCTOS ═══
 ${productList}
 
-CLIENTE:
-${customerInfo}
+═══ HISTORIAL DEL CLIENTE ═══
+Nombre: ${customer?.first_name ?? 'Desconocido'} ${customer?.last_name ?? ''}
+${customerAnalysis}
 
-SCORE BASE (motor de reglas): ${base_score}/100
-SEÑALES DETECTADAS: ${risk_signals.length > 0 ? risk_signals.join(', ') : 'ninguna'}
+═══ ANÁLISIS PREVIO (motor de reglas) ═══
+Score base: ${base_score}/100
+Señales detectadas: ${risk_signals.length > 0 ? risk_signals.join(', ') : 'ninguna señal de riesgo'}
 
-Recuerda: no inventes datos, basa tu análisis solo en lo que ves arriba.`
+═══ INSTRUCCIONES ═══
+- Basa tu análisis en los datos reales. No inventes información.
+- El historial del cliente es el factor más importante.
+- Si el cliente tiene buen historial, reduce el riesgo aunque otros factores sean negativos.
+- Si el cliente tiene mal historial, aumenta el riesgo aunque el pedido parezca normal.
+- El mensaje de WhatsApp debe ser cálido y profesional, adaptado al nivel de riesgo:
+  * Riesgo bajo: mensaje de confirmación amigable
+  * Riesgo medio: mensaje pidiendo confirmación con tono neutro
+  * Riesgo alto: mensaje cauteloso pidiendo verificación
+- Los tags deben ser descriptivos: cliente_nuevo, historial_excelente, direccion_incompleta, importe_alto, producto_impulsivo, etc.`
 }
