@@ -5,8 +5,10 @@ import { analyzeOrder } from '@/services/order-analysis'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -14,9 +16,6 @@ export async function POST(
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
-  const orderId = params.id
-
-  // Verificar que el pedido pertenece al account del usuario
   const adminSupabase = createAdminClient()
   const { data: accountUser } = await adminSupabase
     .from('account_users')
@@ -31,7 +30,7 @@ export async function POST(
   const { data: order } = await adminSupabase
     .from('orders')
     .select('account_id')
-    .eq('id', orderId)
+    .eq('id', id)
     .single()
 
   if (!order || order.account_id !== accountUser.account_id) {
@@ -39,7 +38,7 @@ export async function POST(
   }
 
   try {
-    await analyzeOrder(orderId)
+    await analyzeOrder(id)
     return NextResponse.json({ ok: true })
   } catch (error: any) {
     console.error('Error en reanálisis:', error)

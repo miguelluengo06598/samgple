@@ -17,8 +17,9 @@ const REAPPEAR_HOURS: Record<string, number | null> = {
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
+    const { id } = await params
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
