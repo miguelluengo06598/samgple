@@ -167,4 +167,24 @@ export default function PedidosStack({ initialOrders }: { initialOrders: Order[]
           <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-6">
             <button
               onClick={() => topOrder && handleSwipeLeft(topOrder.id, topOrder.status)}
-              className="w-14 h-14 bg-white rounded-full flex items-center justify-c
+              className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-red-400 text-xl font-bold"
+              style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10)', border: '0.5px solid rgba(0,0,0,0.06)' }}
+            >
+              ✕
+            </button>
+            <button
+              onClick={() => topOrder && handleSwipeRight(topOrder)}
+              className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold"
+              style={{ background: '#2EC4B6', boxShadow: '0 4px 20px rgba(46,196,182,0.4)' }}
+            >
+              →
+            </button>
+            <button
+              onClick={() => topOrder && handleStatusChange(topOrder.id, 'confirmado')}
+              className="w-14 h-14 rounded-full flex items-center justify-center text-green-700 text-xl font-bold"
+              style={{ background: '#80ED99', boxShadow: '0 4px 16px rgba(128,237,153,0.4)', border: '0.5px solid rgba(0,0,0,0.04)' }}
+            >
+              ✓
+            </button>
+          </div>
+        )}
