@@ -20,27 +20,80 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
   // 2. Crear o actualizar customer
   let customerId: string | null = null
 
-  if (payload.customer) {
-    const c = payload.customer
-    const { data: customer } = await supabase
-      .from('customers')
-      .upsert({
-        account_id: accountId,
-        store_id: storeId,
-        shopify_customer_id: String(c.id),
-        first_name: c.first_name ?? null,
-        last_name: c.last_name ?? null,
-        email: c.email ?? null,
-        phone: c.phone ?? payload.phone ?? null,
-      }, {
-        onConflict: 'account_id,shopify_customer_id',
-      })
-      .select('id')
-      .single()
+  if (payload.customer || payload.phone || payload.billing_address?.phone) {
+    const c = payload.customer ?? {}
+    const phone = c.phone ?? payload.phone ?? payload.billing_address?.phone ?? null
+    const email = c.email ?? null
+    const shopifyCustomerId = c.id ? String(c.id) : null
 
-    customerId = customer?.id ?? null
+    // Buscar cliente existente por shopify_customer_id, email o teléfono
+    let existingCustomer = null
+
+    if (shopifyCustomerId) {
+      const { data } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('shopify_customer_id', shopifyCustomerId)
+        .single()
+      existingCustomer = data
+    }
+
+    if (!existingCustomer && phone) {
+      const { data } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('phone', phone)
+        .single()
+      existingCustomer = data
+    }
+
+    if (!existingCustomer && email) {
+      const { data } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('email', email)
+        .single()
+      existingCustomer = data
+    }
+
+    if (existingCustomer) {
+      // Actualizar cliente existente
+      const { data: updated } = await supabase
+        .from('customers')
+        .update({
+          shopify_customer_id: shopifyCustomerId ?? undefined,
+          first_name: c.first_name ?? undefined,
+          last_name: c.last_name ?? undefined,
+          phone: phone ?? undefined,
+          email: email ?? undefined,
+          total_orders: supabase.rpc('increment', { row_id: existingCustomer.id }) as any,
+        })
+        .eq('id', existingCustomer.id)
+        .select('id')
+        .single()
+      customerId = existingCustomer.id
+    } else {
+      // Crear cliente nuevo
+      const { data: newCustomer } = await supabase
+        .from('customers')
+        .insert({
+          account_id: accountId,
+          store_id: storeId,
+          shopify_customer_id: shopifyCustomerId,
+          first_name: c.first_name ?? null,
+          last_name: c.last_name ?? null,
+          email: email,
+          phone: phone,
+          total_orders: 1,
+        })
+        .select('id')
+        .single()
+      customerId = newCustomer?.id ?? null
+    }
   }
-
   // 3. Crear o actualizar productos y recoger sus IDs
   const itemsWithProductId: Array<{
     name: string
