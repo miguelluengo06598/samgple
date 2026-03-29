@@ -8,26 +8,19 @@ type Props = {
   onSwipeRight: () => void
 }
 
-const RISK_CONFIG: Record<string, { bg: string; text: string; dot: string; label: string }> = {
-  bajo:     { bg: 'bg-emerald-50', text: 'text-emerald-700', dot: 'bg-emerald-400', label: 'Bajo' },
-  medio:    { bg: 'bg-amber-50',   text: 'text-amber-700',   dot: 'bg-amber-400',   label: 'Medio' },
-  alto:     { bg: 'bg-orange-50',  text: 'text-orange-700',  dot: 'bg-orange-400',  label: 'Alto' },
-  muy_alto: { bg: 'bg-red-50',     text: 'text-red-700',     dot: 'bg-red-500',     label: 'Muy alto' },
-}
-
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  confirmar:  { label: 'Por confirmar', color: 'bg-blue-100 text-blue-700' },
-  confirmado: { label: 'Confirmado',    color: 'bg-teal-100 text-teal-700' },
-  preparado:  { label: 'Preparado',     color: 'bg-purple-100 text-purple-700' },
-  enviado:    { label: 'Enviado',       color: 'bg-indigo-100 text-indigo-700' },
-  incidencia: { label: 'Incidencia',    color: 'bg-orange-100 text-orange-700' },
-  devolucion: { label: 'Devolución',    color: 'bg-red-100 text-red-700' },
+const RISK: Record<string, { bar: string; badge: string; dot: string; label: string }> = {
+  bajo:     { bar: '#2EC4B6', badge: '#e1f5ee', dot: '#2EC4B6', label: 'Bajo' },
+  medio:    { bar: '#f59e0b', badge: '#fef3c7', dot: '#f59e0b', label: 'Medio' },
+  alto:     { bar: '#f97316', badge: '#fff7ed', dot: '#f97316', label: 'Alto' },
+  muy_alto: { bar: '#ef4444', badge: '#fef2f2', dot: '#ef4444', label: 'Crítico' },
 }
 
 export default function TarjetaPedido({ order, onSwipeLeft, onSwipeRight }: Props) {
   const x = useMotionValue(0)
-  const rotate = useTransform(x, [-150, 150], [-5, 5])
-  const opacity = useTransform(x, [-150, 0, 150], [0.6, 1, 0.6])
+  const rotate = useTransform(x, [-160, 160], [-8, 8])
+  const opacity = useTransform(x, [-160, 0, 160], [0.5, 1, 0.5])
+  const leftOpacity = useTransform(x, [-80, -20, 0], [1, 0, 0])
+  const rightOpacity = useTransform(x, [0, 20, 80], [0, 0, 1])
 
   const analysis = Array.isArray(order.order_risk_analyses)
     ? order.order_risk_analyses[0]
@@ -37,10 +30,9 @@ export default function TarjetaPedido({ order, onSwipeLeft, onSwipeRight }: Prop
   const firstItem = order.order_items?.[0]
   const riskLevel = analysis?.risk_level ?? null
   const riskScore = analysis?.risk_score ?? null
-  const risk = riskLevel ? RISK_CONFIG[riskLevel] : null
-  const status = STATUS_CONFIG[order.status]
-  const city = order.shipping_address?.city ?? ''
+  const risk = riskLevel ? RISK[riskLevel] : null
   const tags = order.order_risk_tags ?? []
+  const city = order.shipping_address?.city ?? ''
 
   function handleDragEnd(_: any, info: PanInfo) {
     if (info.offset.x < -80) onSwipeLeft()
@@ -48,95 +40,113 @@ export default function TarjetaPedido({ order, onSwipeLeft, onSwipeRight }: Prop
   }
 
   return (
-    <motion.div
-      style={{ x, rotate, opacity }}
-      drag="x"
-      dragConstraints={{ left: 0, right: 0 }}
-      onDragEnd={handleDragEnd}
-      whileDrag={{ scale: 1.02 }}
-      onClick={onSwipeRight}
-      className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden cursor-pointer select-none active:scale-[0.99] transition-transform"
-    >
-      {/* Barra superior de color según riesgo */}
-      {risk && (
-        <div className={`h-1 w-full ${
-          riskLevel === 'bajo' ? 'bg-emerald-400' :
-          riskLevel === 'medio' ? 'bg-amber-400' :
-          riskLevel === 'alto' ? 'bg-orange-400' : 'bg-red-500'
-        }`} />
-      )}
+    <div style={{ position: 'relative', width: '100%' }}>
+      {/* Indicadores swipe */}
+      <motion.div
+        style={{ opacity: leftOpacity }}
+        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 bg-red-500 text-white font-bold text-lg w-10 h-10 rounded-full flex items-center justify-center pointer-events-none"
+      >✕</motion.div>
+      <motion.div
+        style={{ opacity: rightOpacity }}
+        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 bg-teal-500 text-white font-bold text-lg w-10 h-10 rounded-full flex items-center justify-center pointer-events-none"
+      >→</motion.div>
 
-      <div className="p-4">
-        {/* Header */}
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <p className="font-semibold text-gray-900 truncate">
+      <motion.div
+        style={{ x, rotate, opacity }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.7}
+        onDragEnd={handleDragEnd}
+        whileDrag={{ scale: 1.02, cursor: 'grabbing' }}
+        onClick={onSwipeRight}
+        className="bg-white rounded-3xl overflow-hidden select-none cursor-grab touch-none"
+        style={{
+          x, rotate, opacity,
+          boxShadow: '0 2px 20px rgba(0,0,0,0.06)',
+          border: '0.5px solid rgba(0,0,0,0.06)',
+        }}
+      >
+        {/* Barra de riesgo */}
+        {risk && (
+          <div style={{ height: 4, background: risk.bar, width: '100%' }} />
+        )}
+
+        <div className="p-5">
+          {/* Header */}
+          <div className="flex items-start justify-between mb-4">
+            <div className="flex-1 min-w-0 pr-3">
+              <p className="text-lg font-semibold text-gray-900 truncate">
                 {customer?.first_name} {customer?.last_name}
               </p>
-              {customer?.total_orders > 1 && (
-                <span className="text-xs bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full shrink-0">
-                  {customer.total_orders} pedidos
-                </span>
+              <p className="text-xs text-gray-400 mt-0.5">
+                {order.order_number} · {city}
+                {customer?.total_orders > 1 && (
+                  <span className="ml-2 bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full text-[10px]">
+                    {customer.total_orders} pedidos
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="text-right shrink-0">
+              <p className="text-xl font-semibold text-gray-900">{order.total_price}€</p>
+              {risk && (
+                <div
+                  className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium mt-1"
+                  style={{ background: risk.badge }}
+                >
+                  <span
+                    className="w-1.5 h-1.5 rounded-full shrink-0"
+                    style={{ background: risk.dot }}
+                  />
+                  <span style={{ color: risk.dot }}>{riskScore} · {risk.label}</span>
+                </div>
               )}
             </div>
-            <p className="text-xs text-gray-400">#{order.order_number} · {city}</p>
           </div>
-          <div className="text-right ml-3 shrink-0">
-            <p className="font-bold text-gray-900 text-lg leading-none">{order.total_price}€</p>
-            {risk && (
-              <div className={`flex items-center gap-1 justify-end mt-1 px-2 py-0.5 rounded-full ${risk.bg}`}>
-                <span className={`w-1.5 h-1.5 rounded-full ${risk.dot}`} />
-                <span className={`text-xs font-medium ${risk.text}`}>{riskScore} · {risk.label}</span>
+
+          {/* Producto */}
+          {firstItem && (
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 bg-gray-50 rounded-xl flex items-center justify-center text-base shrink-0">
+                📦
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* Producto */}
-        {firstItem && (
-          <div className="flex items-center gap-2 mb-3">
-            <div className="w-8 h-8 bg-gray-50 rounded-lg flex items-center justify-center text-sm shrink-0">
-              📦
+              <div className="min-w-0">
+                <p className="text-sm text-gray-800 truncate">{firstItem.name}</p>
+                {order.order_items?.length > 1 && (
+                  <p className="text-xs text-gray-400">+{order.order_items.length - 1} más</p>
+                )}
+              </div>
             </div>
-            <div className="min-w-0">
-              <p className="text-sm text-gray-700 truncate">{firstItem.name}</p>
-              {order.order_items?.length > 1 && (
-                <p className="text-xs text-gray-400">+{order.order_items.length - 1} producto más</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Summary IA */}
-        {analysis?.summary && (
-          <p className="text-xs text-gray-500 bg-gray-50 rounded-xl px-3 py-2 mb-3 line-clamp-2">
-            {analysis.summary}
-          </p>
-        )}
-
-        {/* Footer */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-1.5 flex-wrap flex-1 min-w-0">
-            {tags.slice(0, 3).map((t: any) => (
-              <span key={t.tag} className="text-[10px] px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">
-                {t.tag.replace(/_/g, ' ')}
-              </span>
-            ))}
-          </div>
-          {status && (
-            <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium shrink-0 ml-2 ${status.color}`}>
-              {status.label}
-            </span>
           )}
-        </div>
 
-        {/* Hint */}
-        <div className="flex justify-between mt-3 pt-3 border-t border-gray-50 text-[10px] text-gray-300">
-          <span>← omitir</span>
-          <span>ver detalle →</span>
+          {/* Summary IA */}
+          {analysis?.summary && (
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-2xl px-3 py-2.5 mb-3 leading-relaxed">
+              {analysis.summary}
+            </p>
+          )}
+
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {tags.slice(0, 4).map((t: any) => (
+                <span
+                  key={t.tag}
+                  className="text-[10px] px-2 py-1 rounded-full bg-gray-100 text-gray-500"
+                >
+                  {t.tag.replace(/_/g, ' ')}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Footer hint */}
+          <div className="flex justify-between pt-3 border-t border-gray-50 text-[10px] text-gray-300">
+            <span>← omitir (vuelve en 1h)</span>
+            <span>ver detalle →</span>
+          </div>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
