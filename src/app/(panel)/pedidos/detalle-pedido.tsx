@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 
 type Props = {
   order: any
@@ -26,15 +26,43 @@ const STATUS_OPTIONS = [
   { value: 'cancelado', label: 'Cancelado' },
 ]
 
-export default function DetallePedido({ order, onBack, onStatusChange }: Props) {
+export default function DetallePedido({ order: initialOrder, onBack, onStatusChange }: Props) {
+  const [order, setOrder] = useState(initialOrder)
   const [loading, setLoading] = useState(false)
+  const [analysing, setAnalysing] = useState(false)
   const [copied, setCopied] = useState(false)
+
+  // Cargar datos frescos al abrir el detalle
+  useEffect(() => {
+    async function loadFreshOrder() {
+      try {
+        const res = await fetch(`/api/orders/${initialOrder.id}`)
+        const data = await res.json()
+        if (data.order) setOrder(data.order)
+      } catch (err) {
+        console.error('Error cargando pedido:', err)
+      }
+    }
+    loadFreshOrder()
+  }, [initialOrder.id])
 
   const analysis = order.order_risk_analyses?.[0]
   const customer = order.customers
   const address = order.shipping_address
-
   const phone = order.phone ?? customer?.phone ?? null
+
+  async function handleAnalyse() {
+    setAnalysing(true)
+    try {
+      await fetch(`/api/orders/${order.id}/analyze`, { method: 'POST' })
+      // Recargar datos frescos
+      const res = await fetch(`/api/orders/${order.id}`)
+      const data = await res.json()
+      if (data.order) setOrder(data.order)
+    } finally {
+      setAnalysing(false)
+    }
+  }
 
   async function handleStatusChange(newStatus: string) {
     setLoading(true)
@@ -71,19 +99,25 @@ export default function DetallePedido({ order, onBack, onStatusChange }: Props) 
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 pt-6 pb-4 flex items-center gap-3">
         <button onClick={onBack} className="text-gray-400 hover:text-gray-600 text-xl">←</button>
         <div>
           <h1 className="font-semibold text-gray-900">#{order.order_number}</h1>
           <p className="text-xs text-gray-400">{customer?.first_name} {customer?.last_name}</p>
         </div>
+        <button
+          onClick={handleAnalyse}
+          disabled={analysing}
+          className="ml-auto text-xs px-3 py-1.5 bg-teal-50 text-teal-600 rounded-lg hover:bg-teal-100 disabled:opacity-50"
+        >
+          {analysing ? 'Analizando...' : '🔄 Analizar'}
+        </button>
       </div>
 
       <div className="p-4 space-y-4">
 
         {/* Score */}
-        {analysis && (
+        {analysis ? (
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-gray-700">Riesgo</p>
@@ -103,6 +137,17 @@ export default function DetallePedido({ order, onBack, onStatusChange }: Props) 
                 <p className="text-sm text-teal-800 mt-0.5">{analysis.recommendation}</p>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+            <p className="text-sm text-gray-400 mb-2">Sin análisis todavía</p>
+            <button
+              onClick={handleAnalyse}
+              disabled={analysing}
+              className="text-sm px-4 py-2 bg-teal-500 text-white rounded-xl hover:bg-teal-600 disabled:opacity-50"
+            >
+              {analysing ? 'Analizando...' : 'Analizar con IA'}
+            </button>
           </div>
         )}
 
@@ -159,10 +204,7 @@ export default function DetallePedido({ order, onBack, onStatusChange }: Props) 
           <div className="bg-white rounded-2xl border border-gray-100 p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-sm font-medium text-gray-700">Mensaje WhatsApp</p>
-              <button
-                onClick={copyMessage}
-                className="text-xs text-teal-600 hover:text-teal-700"
-              >
+              <button onClick={copyMessage} className="text-xs text-teal-600 hover:text-teal-700">
                 {copied ? '✓ Copiado' : 'Copiar'}
               </button>
             </div>
@@ -172,7 +214,7 @@ export default function DetallePedido({ order, onBack, onStatusChange }: Props) 
           </div>
         )}
 
-        {/* Acciones principales */}
+        {/* Acciones */}
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={handleCall}
