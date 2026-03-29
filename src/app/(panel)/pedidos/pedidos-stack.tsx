@@ -188,3 +188,7 @@ export default function PedidosStack({ initialOrders }: { initialOrders: Order[]
             </button>
           </div>
         )}
+      </div>
+    </div>
+  )
+}
