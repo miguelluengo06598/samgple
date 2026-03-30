@@ -75,35 +75,33 @@ export default function HerramientasClient() {
     setLoadingIA(true)
     setRecomendacionIA('')
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const res = await fetch('/api/tools/profitability', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 300,
-          messages: [{
-            role: 'user',
-            content: `Soy un negocio de eCommerce COD. Analiza estos datos y dame una recomendación clara en 3-4 frases:
-- Inversión en ads: ${rentData.inv}€
-- Unidades vendidas: ${rentData.uni}
-- Precio de venta: ${rentData.pv}€
-- Coste producto: ${rentData.cp}€
-- Coste envío: ${rentData.ce}€
-- Días de campaña: ${rentData.dias}
-- CPA real: ${rent.cpaReal.toFixed(2)}€
-- ROI: ${rent.roi.toFixed(1)}%
-- Beneficio neto: ${rent.beneficioNeto.toFixed(2)}€
-Dame solo la recomendación, sin introducciones. Sé directo y práctico.`
-          }]
-        })
+          inversion: rentData.inv,
+          unidades: rentData.uni,
+          precioVenta: rentData.pv,
+          costeProducto: rentData.cp,
+          costoEnvio: rentData.ce,
+          diasCampana: rentData.dias,
+          cpaReal: rent.cpaReal.toFixed(2),
+          roi: rent.roi.toFixed(1),
+          beneficioNeto: rent.beneficioNeto.toFixed(2),
+        }),
       })
       const data = await res.json()
-      setRecomendacionIA(data.content?.[0]?.text ?? 'No se pudo obtener recomendación')
+      if (data.recomendacion) {
+        setRecomendacionIA(data.recomendacion)
+      } else {
+        setRecomendacionIA('Error al obtener la recomendación. Inténtalo de nuevo.')
+      }
+    } catch {
+      setRecomendacionIA('Error de conexión. Inténtalo de nuevo.')
     } finally {
       setLoadingIA(false)
     }
   }
-
   const S = {
     page: { background: '#f0fafa', minHeight: '100vh', maxWidth: 480, margin: '0 auto', fontFamily: 'sans-serif' } as React.CSSProperties,
     header: { background: '#fff', padding: '44px 20px 16px', borderBottom: '1px solid #cce8e6' } as React.CSSProperties,
