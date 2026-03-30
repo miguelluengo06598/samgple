@@ -9,11 +9,11 @@ type Props = {
   onStatusChange: (orderId: string, newStatus: string) => void
 }
 
-const RISK_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
-  bajo:     { color: '#2EC4B6', bg: '#e1f5ee', label: 'Bajo riesgo' },
-  medio:    { color: '#f59e0b', bg: '#fef3c7', label: 'Riesgo medio' },
-  alto:     { color: '#f97316', bg: '#fff7ed', label: 'Riesgo alto' },
-  muy_alto: { color: '#ef4444', bg: '#fef2f2', label: 'Riesgo crítico' },
+const RISK_CONFIG: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  bajo:     { color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0', label: 'Bajo riesgo' },
+  medio:    { color: '#92400e', bg: '#fffbeb', border: '#fde68a', label: 'Riesgo medio' },
+  alto:     { color: '#9a3412', bg: '#fff7ed', border: '#fed7aa', label: 'Riesgo alto' },
+  muy_alto: { color: '#991b1b', bg: '#fef2f2', border: '#fecaca', label: 'Riesgo crítico' },
 }
 
 const STATUSES = [
@@ -46,6 +46,7 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
   const address = order.shipping_address
   const phone = order.phone ?? customer?.phone ?? null
   const risk = analysis?.risk_level ? RISK_CONFIG[analysis.risk_level] : null
+  const currentStatus = STATUSES.find(s => s.value === order.status)
 
   async function handleAnalyse() {
     setAnalysing(true)
@@ -87,85 +88,60 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const currentStatus = STATUSES.find(s => s.value === order.status)
-
   return (
-    <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto">
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0fafa', maxWidth: 480, margin: '0 auto' }}>
+
       {/* Header */}
-      <div
-        className="bg-white px-5 pt-10 pb-4 flex items-center gap-3 shrink-0"
-        style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}
-      >
-        <button
-          onClick={onBack}
-          className="w-9 h-9 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 text-sm shrink-0"
-          style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}
-        >
-          ←
-        </button>
-        <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900">#{order.order_number}</p>
-          <p className="text-xs text-gray-400">{customer?.first_name} {customer?.last_name}</p>
+      <div style={{ background: '#ffffff', padding: '44px 20px 16px', borderBottom: '1px solid #cce8e6', flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            onClick={onBack}
+            style={{ width: 36, height: 36, background: '#f0fafa', border: '1px solid #cce8e6', borderRadius: '50%', cursor: 'pointer', fontSize: 16, color: '#0f766e', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+          >←</button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontWeight: 600, color: '#0f172a', fontSize: 15, margin: 0 }}>#{order.order_number}</p>
+            <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>{customer?.first_name} {customer?.last_name}</p>
+          </div>
+          <button
+            onClick={handleAnalyse}
+            disabled={analysing}
+            style={{ fontSize: 12, fontWeight: 600, padding: '7px 13px', borderRadius: 20, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', opacity: analysing ? 0.6 : 1 }}
+          >
+            {analysing ? '...' : '✦ Analizar'}
+          </button>
         </div>
-        <button
-          onClick={handleAnalyse}
-          disabled={analysing}
-          className="text-xs font-medium px-3 py-1.5 rounded-full disabled:opacity-50"
-          style={{ background: '#e1f5ee', color: '#085041' }}
-        >
-          {analysing ? '...' : '🔄 Analizar'}
-        </button>
       </div>
 
-      {/* Scroll content */}
-      <div className="flex-1 overflow-y-auto pb-8">
+      {/* Scroll */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 16px 32px', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-        {/* Score block */}
+        {/* Score */}
         {analysis ? (
-          <div className="mx-4 mt-4 rounded-3xl p-5" style={{ background: '#f7f8fa' }}>
-            <div className="flex items-start justify-between mb-3">
+          <div style={{ background: risk?.bg ?? '#f0fafa', borderRadius: 22, padding: 18, border: `1px solid ${risk?.border ?? '#cce8e6'}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
               <div>
-                <p className="text-4xl font-semibold" style={{ color: risk?.color ?? '#2EC4B6' }}>
-                  {analysis.risk_score}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">score de riesgo</p>
+                <p style={{ fontSize: 52, fontWeight: 600, lineHeight: 1, color: risk?.color ?? '#2EC4B6', margin: 0 }}>{analysis.risk_score}</p>
+                <p style={{ fontSize: 11, color: '#64748b', margin: '4px 0 0' }}>score de riesgo</p>
               </div>
-              <div
-                className="px-3 py-1.5 rounded-full text-xs font-medium"
-                style={{ background: risk?.bg, color: risk?.color }}
-              >
+              <span style={{ padding: '6px 14px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: '#ffffff', color: risk?.color ?? '#0f766e', border: `1px solid ${risk?.border ?? '#cce8e6'}` }}>
                 {risk?.label}
-              </div>
+              </span>
             </div>
-            {/* Barra de riesgo */}
-            <div className="h-1.5 bg-gray-200 rounded-full mb-3 overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-700"
-                style={{ width: `${analysis.risk_score}%`, background: risk?.color ?? '#2EC4B6' }}
-              />
+            <div style={{ height: 6, background: 'rgba(0,0,0,0.08)', borderRadius: 4, overflow: 'hidden', marginBottom: 12 }}>
+              <div style={{ height: '100%', borderRadius: 4, background: risk?.color ?? '#2EC4B6', width: `${analysis.risk_score}%`, transition: 'width 0.6s' }} />
             </div>
-            {analysis.summary && (
-              <p className="text-sm text-gray-600 leading-relaxed mb-3">{analysis.summary}</p>
-            )}
-            {analysis.human_explanation && (
-              <p className="text-xs text-gray-400 leading-relaxed mb-3">{analysis.human_explanation}</p>
-            )}
+            {analysis.summary && <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}>{analysis.summary}</p>}
             {analysis.recommendation && (
-              <div className="rounded-2xl px-3 py-2.5" style={{ background: '#e1f5ee' }}>
-                <p className="text-xs font-medium mb-0.5" style={{ color: '#085041' }}>Recomendación</p>
-                <p className="text-sm" style={{ color: '#0f6e56' }}>{analysis.recommendation}</p>
+              <div style={{ background: '#ffffff', borderRadius: 14, padding: '10px 14px', marginTop: 10, border: `1px solid ${risk?.border ?? '#cce8e6'}` }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: risk?.color ?? '#0f766e', margin: '0 0 3px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recomendación</p>
+                <p style={{ fontSize: 13, color: risk?.color ?? '#0f766e', margin: 0, lineHeight: 1.5 }}>{analysis.recommendation}</p>
               </div>
             )}
           </div>
         ) : (
-          <div className="mx-4 mt-4 rounded-3xl p-5 text-center" style={{ background: '#f7f8fa' }}>
-            <p className="text-sm text-gray-400 mb-3">Sin análisis todavía</p>
-            <button
-              onClick={handleAnalyse}
-              disabled={analysing}
-              className="text-sm font-medium px-5 py-2.5 rounded-2xl text-white disabled:opacity-50"
-              style={{ background: '#2EC4B6' }}
-            >
+          <div style={{ background: '#ffffff', borderRadius: 22, padding: 20, border: '1px solid #cce8e6', textAlign: 'center' }}>
+            <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 12px' }}>Sin análisis todavía</p>
+            <button onClick={handleAnalyse} disabled={analysing} style={{ fontSize: 13, fontWeight: 600, padding: '10px 20px', borderRadius: 14, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer' }}>
               {analysing ? 'Analizando...' : 'Analizar con IA'}
             </button>
           </div>
@@ -173,147 +149,144 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
 
         {/* Tags */}
         {order.order_risk_tags?.length > 0 && (
-          <div className="flex flex-wrap gap-2 px-4 mt-3">
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {order.order_risk_tags.map((t: any) => (
-              <span key={t.tag} className="text-xs px-2.5 py-1 rounded-full bg-white text-gray-500"
-                style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
+              <span key={t.tag} style={{ fontSize: 11, padding: '4px 11px', borderRadius: 20, background: '#ffffff', color: '#0f766e', border: '1px solid #cce8e6', fontWeight: 500 }}>
                 {t.tag.replace(/_/g, ' ')}
               </span>
             ))}
           </div>
         )}
 
-        {/* Info cliente */}
-        <div className="mx-4 mt-4 bg-white rounded-3xl p-5" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-          <p className="text-sm font-medium text-gray-900 mb-3">Cliente</p>
-          <div className="space-y-2.5">
-            <Row label="Nombre" value={`${customer?.first_name ?? ''} ${customer?.last_name ?? ''}`} />
-            <Row label="Teléfono" value={phone ?? '—'} />
-            {address && <>
-              <Row label="Dirección" value={address.address1} />
-              <Row label="Ciudad" value={`${address.city} ${address.zip ?? ''}`} />
-              <Row label="País" value={address.country} />
-            </>}
-            {customer && (
-              <Row label="Historial" value={`${customer.total_orders} pedidos · ${customer.total_delivered} entregados`} />
-            )}
-          </div>
+        {/* Cliente */}
+        <div style={{ background: '#ffffff', borderRadius: 20, padding: 16, border: '1px solid #cce8e6' }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Cliente</p>
+          {[
+            { label: 'Teléfono', value: phone ?? '—', highlight: true },
+            { label: 'Dirección', value: address?.address1 ?? '—' },
+            { label: 'Ciudad', value: address ? `${address.city} ${address.zip ?? ''}` : '—' },
+            { label: 'País', value: address?.country ?? '—' },
+            { label: 'Historial', value: customer ? `${customer.total_orders} pedidos · ${customer.total_delivered} entregados` : '—' },
+          ].map((row, i, arr) => (
+            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: i < arr.length - 1 ? '1px solid #f0fafa' : 'none' }}>
+              <span style={{ fontSize: 12, color: '#94a3b8' }}>{row.label}</span>
+              <span style={{ fontSize: 12, color: row.highlight ? '#2EC4B6' : '#0f172a', fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}>{row.value}</span>
+            </div>
+          ))}
         </div>
 
         {/* Productos */}
-        <div className="mx-4 mt-3 bg-white rounded-3xl p-5" style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}>
-          <p className="text-sm font-medium text-gray-900 mb-3">Productos</p>
-          <div className="space-y-2">
-            {order.order_items?.map((item: any) => (
-              <div key={item.id} className="flex justify-between text-sm">
-                <span className="text-gray-600">{item.name} <span className="text-gray-300">x{item.quantity}</span></span>
-                <span className="font-medium text-gray-800">{item.price}€</span>
-              </div>
-            ))}
-            <div className="pt-2 border-t border-gray-50 flex justify-between text-sm font-semibold">
-              <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">{order.total_price}€</span>
+        <div style={{ background: '#ffffff', borderRadius: 20, padding: 16, border: '1px solid #cce8e6' }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Productos</p>
+          {order.order_items?.map((item: any) => (
+            <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', borderBottom: '1px solid #f0fafa', fontSize: 13 }}>
+              <span style={{ color: '#374151' }}>{item.name} <span style={{ color: '#94a3b8' }}>x{item.quantity}</span></span>
+              <span style={{ fontWeight: 600, color: '#0f172a' }}>{item.price}€</span>
             </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 8, fontSize: 14, fontWeight: 700 }}>
+            <span style={{ color: '#0f172a' }}>Total</span>
+            <span style={{ color: '#0f172a' }}>{order.total_price}€</span>
           </div>
         </div>
 
-        {/* Mensaje WhatsApp */}
+        {/* WhatsApp */}
         {analysis?.customer_message && (
-          <div className="mx-4 mt-3 rounded-3xl p-5" style={{ background: '#f0fdf4', border: '0.5px solid rgba(34,197,94,0.15)' }}>
-            <div className="flex items-center justify-between mb-2">
-              <p className="text-sm font-medium" style={{ color: '#166534' }}>Mensaje WhatsApp</p>
-              <button onClick={copyMessage} className="text-xs font-medium" style={{ color: '#2EC4B6', background: 'transparent', border: 'none', cursor: 'pointer' }}>
-                {copied ? '✓ Copiado' : 'Copiar'}
-              </button>
+          <div style={{ background: '#ffffff', borderRadius: 20, padding: 16, border: '1px solid #cce8e6' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: '#0f766e' }}>Mensaje WhatsApp</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={copyMessage} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: '1px solid #cce8e6', background: '#f0fafa', color: '#0f766e', cursor: 'pointer' }}>
+                  {copied ? '✓ Copiado' : 'Copiar'}
+                </button>
+                <button onClick={handleAnalyse} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer' }}>
+                  ✦ Nuevo
+                </button>
+              </div>
             </div>
-            <p className="text-sm leading-relaxed whitespace-pre-wrap" style={{ color: '#15803d' }}>
+            <div style={{ fontSize: 13, color: '#065f46', lineHeight: 1.6, background: '#f0fdf4', borderRadius: 14, padding: '12px 14px', border: '1px solid #bbf7d0' }}>
               {analysis.customer_message}
-            </p>
+            </div>
           </div>
         )}
 
-        {/* Botones acción */}
-        <div className="grid grid-cols-2 gap-3 mx-4 mt-4">
+        {/* Botones contactar */}
+        <p style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0 0' }}>Contactar</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <button
             onClick={() => phone && window.open(`tel:${phone}`)}
             disabled={!phone}
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-medium disabled:opacity-40"
-            style={{ background: '#fff', border: '0.5px solid rgba(0,0,0,0.08)', color: '#374151' }}
+            style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: '1px solid #cce8e6', background: '#ffffff', color: '#0f766e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: !phone ? 0.4 : 1 }}
           >
-            📞 Llamar
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            Llamar
           </button>
           <button
             onClick={handleWhatsApp}
             disabled={!phone || !analysis?.customer_message}
-            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-medium text-white disabled:opacity-40"
-            style={{ background: '#22c55e' }}
+            style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, opacity: (!phone || !analysis?.customer_message) ? 0.4 : 1 }}
           >
-            💬 WhatsApp
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.125.558 4.122 1.532 5.855L.054 23.447a.5.5 0 00.499.553h.091l5.764-1.511A11.955 11.955 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0z"/></svg>
+            WhatsApp
           </button>
         </div>
 
-        {/* Cambiar estado — dropdown */}
-        <div className="mx-4 mt-3 relative">
-          <button
-            onClick={() => setStatusOpen(!statusOpen)}
-            className="w-full flex items-center justify-between px-5 py-4 bg-white rounded-2xl text-sm font-medium"
-            style={{ border: '0.5px solid rgba(0,0,0,0.06)' }}
-          >
-            <span className="text-gray-500">Estado actual</span>
-            <div className="flex items-center gap-2">
-              <span
-                className="px-3 py-1 rounded-full text-xs font-medium"
-                style={{ background: '#e1f5ee', color: '#085041' }}
-              >
-                {currentStatus?.label ?? order.status}
-              </span>
-              <span className="text-gray-400 text-xs">{statusOpen ? '▲' : '▼'}</span>
-            </div>
+        {/* Botones gestionar */}
+        <p style={{ fontSize: 10, fontWeight: 600, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '4px 0 0' }}>Gestionar pedido</p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={() => handleStatus('confirmado')} disabled={loading} style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Confirmar
           </button>
-
-          <AnimatePresence>
-            {statusOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: -8, scale: 0.97 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -8, scale: 0.97 }}
-                transition={{ duration: 0.15 }}
-                className="absolute left-0 right-0 mt-2 bg-white rounded-2xl overflow-hidden z-20"
-                style={{ border: '0.5px solid rgba(0,0,0,0.08)', boxShadow: '0 8px 32px rgba(0,0,0,0.10)' }}
-              >
-                {STATUSES.map((s, i) => (
-                  <button
-                    key={s.value}
-                    onClick={() => handleStatus(s.value)}
-                    disabled={loading || s.value === order.status}
-                    className="w-full text-left px-5 py-3.5 text-sm flex items-center justify-between disabled:opacity-40 transition-colors"
-                    style={{
-                      borderBottom: i < STATUSES.length - 1 ? '0.5px solid rgba(0,0,0,0.04)' : 'none',
-                      background: s.value === order.status ? '#f7f8fa' : 'transparent',
-                      color: s.value === 'cancelado' ? '#991b1b' : '#374151',
-                    }}
-                  >
-                    <span>{s.label}</span>
-                    {s.value === order.status && (
-                      <span className="text-xs font-medium" style={{ color: '#2EC4B6' }}>actual</span>
-                    )}
-                  </button>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <button onClick={() => handleStatus('incidencia')} disabled={loading} style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: '1px solid #fed7aa', background: '#fff7ed', color: '#9a3412', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9a3412" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Incidencia
+          </button>
         </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <button onClick={() => handleStatus('cancelado')} disabled={loading} style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: '1px solid #fecaca', background: '#fef2f2', color: '#991b1b', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#991b1b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Cancelar
+          </button>
+          <button onClick={() => setStatusOpen(!statusOpen)} style={{ padding: 15, borderRadius: 16, fontSize: 13, fontWeight: 600, border: '1px solid #cce8e6', background: '#ffffff', color: '#0f766e', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            Estado
+          </button>
+        </div>
+
+        {/* Dropdown estado */}
+        <AnimatePresence>
+          {statusOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              style={{ background: '#ffffff', borderRadius: 16, border: '1px solid #cce8e6', overflow: 'hidden', boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}
+            >
+              {STATUSES.map((s, i) => (
+                <button
+                  key={s.value}
+                  onClick={() => handleStatus(s.value)}
+                  disabled={loading || s.value === order.status}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '12px 16px', fontSize: 13,
+                    fontWeight: s.value === order.status ? 700 : 500,
+                    color: s.value === 'cancelado' ? '#991b1b' : s.value === order.status ? '#2EC4B6' : '#374151',
+                    border: 'none', background: s.value === order.status ? '#f0fafa' : 'transparent',
+                    borderBottom: i < STATUSES.length - 1 ? '1px solid #f0fafa' : 'none',
+                    cursor: s.value === order.status ? 'default' : 'pointer',
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  }}
+                >
+                  {s.label}
+                  {s.value === order.status && <span style={{ color: '#2EC4B6', fontSize: 14 }}>✓</span>}
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
       </div>
-    </div>
-  )
-}
-
-function Row({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex justify-between text-sm">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-gray-700 font-medium text-right max-w-[60%] leading-snug">{value}</span>
     </div>
   )
 }
