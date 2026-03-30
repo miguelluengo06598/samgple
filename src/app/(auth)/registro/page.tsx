@@ -9,6 +9,7 @@ export default function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [accepted, setAccepted] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
@@ -16,6 +17,10 @@ export default function RegisterPage() {
     e.preventDefault()
     if (password.length < 8) {
       setError('La contraseña debe tener al menos 8 caracteres')
+      return
+    }
+    if (!accepted) {
+      setError('Debes aceptar los términos y condiciones')
       return
     }
     setLoading(true)
@@ -34,6 +39,8 @@ export default function RegisterPage() {
     router.push('/pedidos')
     router.refresh()
   }
+
+  const btnDisabled = loading || !accepted
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(145deg,#f5f3ff,#ede9fe)', padding: '20px', fontFamily: 'system-ui,-apple-system,sans-serif' }}>
@@ -60,6 +67,7 @@ export default function RegisterPage() {
 
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
+            {/* Nombre */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }}>
                 Nombre completo
@@ -80,6 +88,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Email */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }}>
                 Email
@@ -100,6 +109,7 @@ export default function RegisterPage() {
               </div>
             </div>
 
+            {/* Contraseña */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }}>
                 Contraseña
@@ -120,30 +130,59 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: '#f5f3ff', borderRadius: 14, border: '1.5px solid #ede9fe' }}>
-              <div style={{ width: 18, height: 18, background: '#7c3aed', borderRadius: 5, flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
+            {/* Checkbox términos */}
+            <div
+              onClick={() => setAccepted(!accepted)}
+              style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px', background: accepted ? '#f5f3ff' : '#f8fafc', borderRadius: 14, border: `1.5px solid ${accepted ? '#ede9fe' : '#e2e8f0'}`, cursor: 'pointer', transition: 'all 0.15s' }}
+            >
+              <div style={{ width: 18, height: 18, background: accepted ? '#7c3aed' : '#fff', border: `2px solid ${accepted ? '#7c3aed' : '#cbd5e1'}`, borderRadius: 5, flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}>
+                {accepted && (
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                )}
               </div>
-              <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.5 }}>
+              <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.5, userSelect: 'none' }}>
                 Acepto los{' '}
-                <span style={{ color: '#7c3aed', fontWeight: 600, cursor: 'pointer' }}>términos y condiciones</span>
+                <span
+                  onClick={e => e.stopPropagation()}
+                  style={{ color: '#7c3aed', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  términos y condiciones
+                </span>
                 {' '}y la{' '}
-                <span style={{ color: '#7c3aed', fontWeight: 600, cursor: 'pointer' }}>política de privacidad</span>
+                <span
+                  onClick={e => e.stopPropagation()}
+                  style={{ color: '#7c3aed', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  política de privacidad
+                </span>
               </p>
             </div>
 
+            {/* Error */}
             {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px' }}>
                 <p style={{ fontSize: 13, color: '#dc2626', margin: 0, fontWeight: 500 }}>{error}</p>
               </div>
             )}
 
+            {/* Botón */}
             <button
               type="submit"
-              disabled={loading}
-              style={{ background: loading ? '#94a3b8' : 'linear-gradient(135deg,#7c3aed,#4f46e5)', border: 'none', borderRadius: 14, padding: 'clamp(12px,2.5vw,15px)', fontSize: 'clamp(13px,3vw,15px)', fontWeight: 700, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', width: '100%' }}
+              disabled={btnDisabled}
+              style={{
+                background: btnDisabled ? '#94a3b8' : 'linear-gradient(135deg,#7c3aed,#4f46e5)',
+                border: 'none',
+                borderRadius: 14,
+                padding: 'clamp(12px,2.5vw,15px)',
+                fontSize: 'clamp(13px,3vw,15px)',
+                fontWeight: 700,
+                color: '#fff',
+                cursor: btnDisabled ? 'not-allowed' : 'pointer',
+                width: '100%',
+                transition: 'background 0.15s',
+              }}
             >
               {loading ? 'Creando cuenta...' : 'Crear cuenta gratis'}
             </button>
