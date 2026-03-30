@@ -3,7 +3,8 @@ import { calculateBaseRisk } from './risk-engine'
 import { analyzeOrderWithAI } from './ai-analysis'
 import { deductBalance, hasBalance } from './wallet'
 
-const AI_ANALYSIS_COST = 0.05 // tokens por análisis
+const AI_ANALYSIS_COST_INITIAL = 0.17    // primer análisis
+const AI_ANALYSIS_COST_REANALYSIS = 0.01 // reanálisis manual
 
 export async function analyzeOrder(orderId: string): Promise<void> {
   const supabase = createAdminClient()
@@ -26,8 +27,9 @@ export async function analyzeOrder(orderId: string): Promise<void> {
     throw new Error(`Pedido no encontrado: ${orderId}`)
   }
 
-  // 2. Verificar saldo — si no hay saldo, guardar análisis base sin IA
-  const hasFunds = await hasBalance(order.account_id, AI_ANALYSIS_COST)
+  // 2. Determinar coste según si es primer análisis o reanálisis
+  const isFirstAnalysis = !order.ai_charged
+  const cost = isFirstAnalysis ? AI_ANALYSIS_COST_INITIAL : AI_ANALYSIS_COST_REANALYSIS
 
   // 3. Preparar datos para el motor de riesgo
   const customer = order.customers
@@ -57,14 +59,16 @@ export async function analyzeOrder(orderId: string): Promise<void> {
   // 4. Calcular score base
   const baseResult = calculateBaseRisk(riskInput)
 
-  // 5. Si no hay saldo, guardar solo el análisis base
+  // 5. Verificar saldo
+  const hasFunds = await hasBalance(order.account_id, cost)
+
   if (!hasFunds) {
     await saveAnalysis(orderId, order.account_id, {
       base_score: baseResult.base_score,
       ai_score: 0,
       final_score: baseResult.base_score,
       risk_level: baseResult.risk_level,
-      summary: 'Análisis básico — sin saldo para IA',
+      summary: 'Análisis básico — saldo insuficiente',
       human_explanation: null,
       recommendation: null,
       customer_message: null,
@@ -74,23 +78,24 @@ export async function analyzeOrder(orderId: string): Promise<void> {
     return
   }
 
-  // 6. Cobrar antes de llamar a la IA (solo si es el primer análisis)
-  if (!order.ai_charged) {
-    await deductBalance(
-      order.account_id,
-      AI_ANALYSIS_COST,
-      'order_analysis_charge',
-      `Análisis IA pedido ${order.order_number ?? order.id}`,
-      { order_id: orderId }
-    )
+  // 6. Cobrar
+  await deductBalance(
+    order.account_id,
+    cost,
+    'order_analysis_charge',
+    `${isFirstAnalysis ? 'Análisis IA' : 'Reanálisis IA'} pedido ${order.order_number ?? order.id}`,
+    { order_id: orderId }
+  )
 
+  // 7. Marcar ai_charged solo en el primer análisis
+  if (isFirstAnalysis) {
     await supabase
       .from('orders')
       .update({ ai_charged: true })
       .eq('id', orderId)
   }
 
-  // 7. Llamar a la IA
+  // 8. Llamar a la IA
   const aiInput = {
     order: {
       id: order.id,
@@ -116,7 +121,7 @@ export async function analyzeOrder(orderId: string): Promise<void> {
 
   const aiResult = await analyzeOrderWithAI(aiInput)
 
-  // 8. Guardar análisis completo
+  // 9. Guardar análisis completo
   await saveAnalysis(orderId, order.account_id, {
     base_score: baseResult.base_score,
     ai_score: aiResult.ai_score,
@@ -152,7 +157,6 @@ async function saveAnalysis(
 ) {
   const supabase = createAdminClient()
 
-  // Guardar o actualizar análisis
   await supabase
     .from('order_risk_analyses')
     .upsert({
@@ -171,7 +175,6 @@ async function saveAnalysis(
       onConflict: 'order_id',
     })
 
-  // Borrar tags anteriores y reinsertar
   await supabase
     .from('order_risk_tags')
     .delete()

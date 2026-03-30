@@ -30,6 +30,7 @@ const STATUSES = [
 export default function DetallePedido({ order: initialOrder, onBack, onStatusChange }: Props) {
   const [order, setOrder] = useState(initialOrder)
   const [analysing, setAnalysing] = useState(false)
+  const [generatingMsg, setGeneratingMsg] = useState(false)
   const [copied, setCopied] = useState(false)
   const [statusOpen, setStatusOpen] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -46,8 +47,8 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
   const address = order.shipping_address
   const phone = order.phone ?? customer?.phone ?? null
   const risk = analysis?.risk_level ? RISK_CONFIG[analysis.risk_level] : null
-  const currentStatus = STATUSES.find(s => s.value === order.status)
 
+  // Reanálisis completo — cobra 0.01
   async function handleAnalyse() {
     setAnalysing(true)
     try {
@@ -57,6 +58,28 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
       if (data.order) setOrder(data.order)
     } finally {
       setAnalysing(false)
+    }
+  }
+
+  // Nuevo mensaje WhatsApp — cobra 0.003
+  async function handleNewMessage() {
+    setGeneratingMsg(true)
+    try {
+      const res = await fetch(`/api/orders/${order.id}/message`, { method: 'POST' })
+      const data = await res.json()
+      if (data.message) {
+        setOrder((prev: any) => ({
+          ...prev,
+          order_risk_analyses: [{
+            ...prev.order_risk_analyses?.[0],
+            customer_message: data.message,
+          }],
+        }))
+      } else if (data.error === 'Saldo insuficiente') {
+        alert('Saldo insuficiente para regenerar el mensaje (0.003 tokens)')
+      }
+    } finally {
+      setGeneratingMsg(false)
     }
   }
 
@@ -190,17 +213,27 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
           </div>
         </div>
 
-        {/* WhatsApp */}
+        {/* WhatsApp — botón Nuevo usa handleNewMessage */}
         {analysis?.customer_message && (
           <div style={{ background: '#ffffff', borderRadius: 20, padding: 16, border: '1px solid #cce8e6' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#0f766e' }}>Mensaje WhatsApp</span>
+              <div>
+                <span style={{ fontSize: 13, fontWeight: 600, color: '#0f766e' }}>Mensaje WhatsApp</span>
+                <span style={{ fontSize: 10, color: '#9ca3af', marginLeft: 8 }}>0.003 tokens</span>
+              </div>
               <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={copyMessage} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: '1px solid #cce8e6', background: '#f0fafa', color: '#0f766e', cursor: 'pointer' }}>
+                <button
+                  onClick={copyMessage}
+                  style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: '1px solid #cce8e6', background: '#f0fafa', color: '#0f766e', cursor: 'pointer' }}
+                >
                   {copied ? '✓ Copiado' : 'Copiar'}
                 </button>
-                <button onClick={handleAnalyse} style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer' }}>
-                  ✦ Nuevo
+                <button
+                  onClick={handleNewMessage}
+                  disabled={generatingMsg}
+                  style={{ padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', opacity: generatingMsg ? 0.6 : 1 }}
+                >
+                  {generatingMsg ? '...' : '✦ Nuevo'}
                 </button>
               </div>
             </div>
