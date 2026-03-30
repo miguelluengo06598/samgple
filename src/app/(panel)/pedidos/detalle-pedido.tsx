@@ -112,10 +112,9 @@ export default function DetallePedido({ order: initialOrder, onBack, onStatusCha
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#f0fafa', maxWidth: 480, margin: '0 auto' }}>
-
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f0fafa', maxWidth: 480, margin: '0 auto' }}>
       {/* Header */}
-      <div style={{ background: '#ffffff', padding: '44px 20px 16px', borderBottom: '1px solid #cce8e6', flexShrink: 0 }}>
+      <div style={{ background: '#ffffff', padding: '12px 20px 16px', borderBottom: '1px solid #cce8e6', flexShrink: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={onBack}

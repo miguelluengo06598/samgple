@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import TarjetaPedido from './tarjeta-pedido'
 import DetallePedido from './detalle-pedido'
@@ -30,16 +30,13 @@ export default function PedidosStack({ initialOrders }: { initialOrders: Order[]
   }).length
 
   async function handleSwipeLeft(orderId: string, status: string) {
-    // Calcular reaparición según estado
     const hours = status === 'confirmar' ? 1 : 3
     const next = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
-
     await fetch(`/api/orders/${orderId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, next_reappear_at: next }),
     })
-
     setOrders(prev => prev.filter(o => o.id !== orderId))
   }
 
@@ -48,147 +45,158 @@ export default function PedidosStack({ initialOrders }: { initialOrders: Order[]
   }
 
   function handleStatusChange(orderId: string, newStatus: string) {
-    if (newStatus === 'entregado' || newStatus === 'cancelado') {
-      setOrders(prev => prev.filter(o => o.id !== orderId))
-    } else {
-      setOrders(prev => prev.filter(o => o.id !== orderId))
-    }
+    setOrders(prev => prev.filter(o => o.id !== orderId))
     setSelectedOrder(null)
   }
 
-  if (selectedOrder) {
-    return (
-      <DetallePedido
-        order={selectedOrder}
-        onBack={() => setSelectedOrder(null)}
-        onStatusChange={handleStatusChange}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col h-screen bg-gray-50 max-w-md mx-auto">
-      {/* Header */}
-      <div className="bg-white px-5 pt-10 pb-4 shrink-0" style={{ borderBottom: '0.5px solid rgba(0,0,0,0.06)' }}>
-        <div className="flex items-center justify-between mb-1">
-          <h1 className="text-2xl font-semibold text-gray-900">Pedidos</h1>
-          <div className="flex gap-2">
-            {highRisk > 0 && (
-              <span className="text-[11px] font-medium bg-red-50 text-red-600 px-2.5 py-1 rounded-full">
-                {highRisk} alto riesgo
-              </span>
-            )}
-            <span className="text-[11px] font-medium bg-gray-100 text-gray-500 px-2.5 py-1 rounded-full">
-              {filtered.length} pendientes
-            </span>
-          </div>
-        </div>
-        <p className="text-sm text-gray-400 mb-3">Desliza para gestionar</p>
-        <div
-          className="flex items-center gap-2 px-3 py-2.5 rounded-2xl"
-          style={{ background: '#f7f8fa', border: '0.5px solid rgba(0,0,0,0.06)' }}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="#9ca3af" strokeWidth="1.5">
-            <circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l2.5 2.5"/>
-          </svg>
-          <input
-            type="text"
-            placeholder="Buscar cliente, teléfono, pedido..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="bg-transparent text-sm outline-none flex-1 text-gray-700 placeholder-gray-400"
-          />
-        </div>
-      </div>
+    <div style={{ position: 'relative', height: '100vh', background: '#f0fafa', maxWidth: 480, margin: '0 auto', overflow: 'hidden' }}>
 
-      {/* Stack area */}
-      <div className="flex-1 flex flex-col items-center justify-center px-5 pb-24 pt-4 relative">
-        {filtered.length === 0 ? (
-          <div className="text-center">
-            <p className="text-5xl mb-4">🎉</p>
-            <p className="text-lg font-semibold text-gray-800">Todo al día</p>
-            <p className="text-sm text-gray-400 mt-1">No hay pedidos pendientes</p>
+      {/* ── STACK ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {/* Header */}
+        <div style={{ background: '#ffffff', padding: '44px 20px 16px', borderBottom: '1px solid #cce8e6', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <h1 style={{ fontSize: 22, fontWeight: 600, color: '#0f172a', margin: 0 }}>Pedidos</h1>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {highRisk > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 500, background: '#fef2f2', color: '#dc2626', padding: '3px 10px', borderRadius: 20 }}>
+                  {highRisk} alto riesgo
+                </span>
+              )}
+              <span style={{ fontSize: 11, fontWeight: 500, background: '#f0fafa', color: '#0f766e', padding: '3px 10px', borderRadius: 20, border: '1px solid #cce8e6' }}>
+                {filtered.length} pendientes
+              </span>
+            </div>
           </div>
-        ) : (
-          <div className="relative w-full" style={{ height: 420 }}>
-            {/* Tarjetas de fondo */}
-            {behindOrders.map((order, i) => (
-              <div
-                key={order.id}
-                className="absolute inset-x-0"
-                style={{
-                  transform: `scale(${0.96 - i * 0.03}) translateY(${-12 - i * 10}px)`,
-                  zIndex: 1 - i,
-                  opacity: 0.7 - i * 0.2,
-                  pointerEvents: 'none',
-                }}
-              >
-                <div className="bg-white rounded-3xl overflow-hidden" style={{ boxShadow: '0 2px 20px rgba(0,0,0,0.06)', border: '0.5px solid rgba(0,0,0,0.06)' }}>
-                  <div style={{ height: 4, background: '#e5e7eb' }} />
-                  <div className="p-5">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <p className="text-lg font-semibold text-gray-300">
+          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 12px' }}>Desliza para gestionar</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f7f8fa', border: '1px solid #cce8e6', borderRadius: 14, padding: '9px 14px' }}>
+            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#9ca3af" strokeWidth="1.5">
+              <circle cx="6.5" cy="6.5" r="4"/><path d="M11 11l2.5 2.5"/>
+            </svg>
+            <input
+              type="text"
+              placeholder="Buscar cliente, teléfono, pedido..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ background: 'transparent', border: 'none', fontSize: 13, outline: 'none', flex: 1, color: '#0f172a' }}
+            />
+          </div>
+        </div>
+
+        {/* Stack area */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px 20px 100px', position: 'relative' }}>
+          {filtered.length === 0 ? (
+            <div style={{ textAlign: 'center' }}>
+              <p style={{ fontSize: 48, margin: '0 0 12px' }}>🎉</p>
+              <p style={{ fontSize: 17, fontWeight: 600, color: '#0f172a', margin: 0 }}>Todo al día</p>
+              <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>No hay pedidos pendientes</p>
+            </div>
+          ) : (
+            <div style={{ position: 'relative', width: '100%', height: 460 }}>
+              {/* Tarjetas de fondo */}
+              {behindOrders.map((order, i) => (
+                <div
+                  key={order.id}
+                  style={{
+                    position: 'absolute', inset: '0',
+                    transform: `scale(${0.96 - i * 0.03}) translateY(${-12 - i * 10}px)`,
+                    zIndex: 1 - i,
+                    opacity: 0.7 - i * 0.2,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <div style={{ background: '#fff', borderRadius: 28, overflow: 'hidden', boxShadow: '0 2px 20px rgba(46,196,182,0.1)', border: '1px solid #cce8e6' }}>
+                    <div style={{ height: 4, background: '#e2f0ef' }} />
+                    <div style={{ padding: 20 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <p style={{ fontSize: 16, fontWeight: 500, color: '#d1d5db', margin: 0 }}>
                           {order.customers?.first_name} {order.customers?.last_name}
                         </p>
-                        <p className="text-xs text-gray-200">{order.order_number}</p>
+                        <p style={{ fontSize: 17, fontWeight: 500, color: '#d1d5db', margin: 0 }}>{order.total_price}€</p>
                       </div>
-                      <p className="text-xl font-semibold text-gray-200">{order.total_price}€</p>
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              ))}
 
-            {/* Tarjeta principal */}
-            {topOrder && (
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={topOrder.id}
-                  className="absolute inset-x-0"
-                  style={{ zIndex: 10 }}
-                  initial={{ scale: 0.95, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                >
-                  <TarjetaPedido
-                    order={topOrder}
-                    onSwipeLeft={() => handleSwipeLeft(topOrder.id, topOrder.status)}
-                    onSwipeRight={() => handleSwipeRight(topOrder)}
-                  />
-                </motion.div>
-              </AnimatePresence>
-            )}
-          </div>
-        )}
+              {/* Tarjeta principal */}
+              {topOrder && (
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={topOrder.id}
+                    style={{ position: 'absolute', inset: 0, zIndex: 10 }}
+                    initial={{ scale: 0.95, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                  >
+                    <TarjetaPedido
+                      order={topOrder}
+                      onSwipeLeft={() => handleSwipeLeft(topOrder.id, topOrder.status)}
+                      onSwipeRight={() => handleSwipeRight(topOrder)}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              )}
+            </div>
+          )}
 
-        {/* Botones de acción */}
-        {filtered.length > 0 && (
-          <div className="absolute bottom-8 left-0 right-0 flex justify-center items-center gap-6">
-            <button
-              onClick={() => topOrder && handleSwipeLeft(topOrder.id, topOrder.status)}
-              className="w-14 h-14 bg-white rounded-full flex items-center justify-center text-red-400 text-xl font-bold"
-              style={{ boxShadow: '0 4px 16px rgba(0,0,0,0.10)', border: '0.5px solid rgba(0,0,0,0.06)' }}
-            >
-              ✕
-            </button>
-            <button
-              onClick={() => topOrder && handleSwipeRight(topOrder)}
-              className="w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold"
-              style={{ background: '#2EC4B6', boxShadow: '0 4px 20px rgba(46,196,182,0.4)' }}
-            >
-              →
-            </button>
-            <button
-              onClick={() => topOrder && handleStatusChange(topOrder.id, 'confirmado')}
-              className="w-14 h-14 rounded-full flex items-center justify-center text-green-700 text-xl font-bold"
-              style={{ background: '#80ED99', boxShadow: '0 4px 16px rgba(128,237,153,0.4)', border: '0.5px solid rgba(0,0,0,0.04)' }}
-            >
-              ✓
-            </button>
-          </div>
-        )}
+          {/* Botones acción */}
+          {filtered.length > 0 && (
+            <div style={{ position: 'absolute', bottom: 24, left: 0, right: 0, display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 20 }}>
+              <button
+                onClick={() => topOrder && handleSwipeLeft(topOrder.id, topOrder.status)}
+                style={{ width: 52, height: 52, borderRadius: '50%', background: '#fff', border: '1px solid #cce8e6', cursor: 'pointer', fontSize: 18, color: '#dc2626', boxShadow: '0 4px 16px rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              >✕</button>
+              <button
+                onClick={() => topOrder && handleSwipeRight(topOrder)}
+                style={{ width: 60, height: 60, borderRadius: '50%', background: '#2EC4B6', border: 'none', cursor: 'pointer', fontSize: 22, color: '#fff', boxShadow: '0 4px 20px rgba(46,196,182,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              >→</button>
+              <button
+                onClick={() => topOrder && handleStatusChange(topOrder.id, 'confirmado')}
+                style={{ width: 52, height: 52, borderRadius: '50%', background: '#80ED99', border: 'none', cursor: 'pointer', fontSize: 18, color: '#166534', boxShadow: '0 4px 16px rgba(128,237,153,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}
+              >✓</button>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* ── SHEET OVERLAY — sube desde abajo ── */}
+      <AnimatePresence>
+        {selectedOrder && (
+          <>
+            {/* Fondo oscuro */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedOrder(null)}
+              style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 40 }}
+            />
+
+            {/* Sheet */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 35 }}
+              style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 50, maxHeight: '92%', borderRadius: '28px 28px 0 0', overflow: 'hidden', background: '#f0fafa' }}
+            >
+              {/* Handle */}
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, background: '#fff', borderRadius: '28px 28px 0 0' }}>
+                <div style={{ width: 36, height: 4, background: '#cce8e6', borderRadius: 2 }} />
+              </div>
+
+              <DetallePedido
+                order={selectedOrder}
+                onBack={() => setSelectedOrder(null)}
+                onStatusChange={handleStatusChange}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
     </div>
   )
 }
