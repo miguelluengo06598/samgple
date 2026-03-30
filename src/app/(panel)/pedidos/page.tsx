@@ -14,7 +14,6 @@ export default async function PedidosPage() {
     .single()
 
   const now = new Date().toISOString()
-
   const { data: orders } = await adminSupabase
     .from('orders')
     .select(`
@@ -31,5 +30,10 @@ export default async function PedidosPage() {
     .order('created_at', { ascending: false })
     .limit(50)
 
-  return <PedidosStack initialOrders={orders ?? []} />
+  return (
+    <PedidosStack
+      initialOrders={orders ?? []}
+      accountId={accountUser!.account_id}
+    />
+  )
 }

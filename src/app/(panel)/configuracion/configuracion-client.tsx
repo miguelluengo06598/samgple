@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useRealtime } from '@/hooks/useRealtime'
 
 type Props = {
   account: any
@@ -14,6 +15,7 @@ type Props = {
   threads: any[]
   invoices: any[]
   userId: string
+  accountId: string
 }
 
 const SECTIONS = ['cuenta', 'tokens', 'soporte', 'facturas', 'informe'] as const
@@ -30,7 +32,7 @@ const STATUS_LABELS: Record<string, { label: string; color: string; bg: string }
   rejected:    { label: 'Rechazada',   color: '#dc2626', bg: '#fef2f2' },
 }
 
-export default function ConfiguracionClient({ account, profile, wallet, stores, packs, threads, invoices, userId }: Props) {
+export default function ConfiguracionClient({ account, profile, wallet, stores, packs, threads, invoices, userId, accountId }: Props) {
   const router = useRouter()
   const [section, setSection] = useState<Section>('cuenta')
   const [saving, setSaving] = useState(false)
@@ -38,7 +40,7 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
 
   // Cuenta
   const [name, setName] = useState(account?.name ?? '')
-  const [email, setEmail] = useState(account?.email ?? '')
+  const [email] = useState(account?.email ?? '')
   const [timezone, setTimezone] = useState(profile?.timezone ?? 'Europe/Madrid')
   const [newPassword, setNewPassword] = useState('')
 
@@ -64,13 +66,69 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
   const [reportLoading, setReportLoading] = useState(false)
   const [reportMsg, setReportMsg] = useState('')
 
+  // Estados locales para realtime
+  const [localThreads, setLocalThreads] = useState(threads)
+  const [localInvoices, setLocalInvoices] = useState(invoices)
+  const [localWalletBalance, setLocalWalletBalance] = useState(wallet?.balance ?? 0)
+
   const supabase = createClient()
+
+  // Realtime
+  useRealtime([
+    {
+      table: 'support_messages',
+      filter: `account_id=eq.${accountId}`,
+      onInsert: (msg) => {
+        setLocalThreads(prev => prev.map(t =>
+          t.id === msg.thread_id
+            ? { ...t, support_messages: [...(t.support_messages ?? []), msg], updated_at: msg.created_at }
+            : t
+        ))
+        setSelectedThread((prev: any) => {
+          if (!prev || prev.id !== msg.thread_id) return prev
+          return { ...prev, support_messages: [...(prev.support_messages ?? []), msg] }
+        })
+      },
+    },
+    {
+      table: 'support_threads',
+      filter: `account_id=eq.${accountId}`,
+      onInsert: (thread) => {
+        setLocalThreads(prev => [{ ...thread, support_messages: [] }, ...prev])
+      },
+      onUpdate: (thread) => {
+        setLocalThreads(prev => prev.map(t => t.id === thread.id ? { ...t, ...thread } : t))
+      },
+    },
+    {
+      table: 'invoice_requests',
+      filter: `account_id=eq.${accountId}`,
+      onInsert: (inv) => {
+        setLocalInvoices(prev => [inv, ...prev])
+      },
+      onUpdate: (inv) => {
+        setLocalInvoices(prev => prev.map(i => i.id === inv.id ? { ...i, ...inv } : i))
+      },
+    },
+    {
+      table: 'wallet_movements',
+      filter: `account_id=eq.${accountId}`,
+      onInsert: async () => {
+        const supabaseClient = createClient()
+        const { data: w } = await supabaseClient
+          .from('wallets')
+          .select('balance')
+          .eq('account_id', accountId)
+          .single()
+        if (w) setLocalWalletBalance(w.balance)
+      },
+    },
+  ])
 
   async function handleSaveAccount() {
     setSaving(true)
     setMsg('')
     try {
-      const admin = createClient()
       await fetch('/api/account/update', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -112,7 +170,6 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
       if (data.ok) {
         setCouponMsg(`✓ Cupón canjeado: +${data.tokens} tokens`)
         setCouponCode('')
-        router.refresh()
       } else {
         setCouponMsg(`✕ ${data.error}`)
       }
@@ -131,7 +188,6 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
         body: JSON.stringify({ content: newMessage }),
       })
       setNewMessage('')
-      router.refresh()
     } finally {
       setSendingMsg(false)
     }
@@ -149,7 +205,6 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
       setNewSubject('')
       setNewTicketMsg('')
       setShowNewTicket(false)
-      router.refresh()
     } finally {
       setSendingMsg(false)
     }
@@ -168,7 +223,6 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
       if (data.invoice) {
         setInvoiceMsg('✓ Solicitud enviada al equipo de SAMGPLE')
         setInvoiceNotes('')
-        router.refresh()
       }
     } finally {
       setInvoiceLoading(false)
@@ -267,6 +321,7 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
             <div style={S.card}>
               <p style={S.sectionTitle}>Tiendas conectadas</p>
               <p style={S.sectionSub}>Gestiona tus tiendas Shopify</p>
+              {stores.length === 0 && <p style={{ fontSize: 13, color: '#64748b' }}>No hay tiendas conectadas</p>}
               {stores.map(store => (
                 <div key={store.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0fafa' }}>
                   <div>
@@ -291,7 +346,7 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ background: '#2EC4B6', borderRadius: 20, padding: '20px 20px', textAlign: 'center' }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px' }}>Saldo actual</p>
-              <p style={{ fontSize: 48, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1 }}>{Number(wallet?.balance ?? 0).toFixed(2)}</p>
+              <p style={{ fontSize: 48, fontWeight: 700, color: '#fff', margin: 0, lineHeight: 1 }}>{Number(localWalletBalance).toFixed(2)}</p>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', margin: '4px 0 0' }}>tokens disponibles</p>
             </div>
 
@@ -358,14 +413,14 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
                   )}
                 </AnimatePresence>
 
-                {threads.length === 0 ? (
+                {localThreads.length === 0 ? (
                   <div style={{ ...S.card, textAlign: 'center', padding: 32 }}>
                     <p style={{ fontSize: 32, margin: '0 0 8px' }}>💬</p>
                     <p style={{ fontSize: 14, fontWeight: 600, color: '#0f172a', margin: 0 }}>Sin tickets todavía</p>
                     <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>Crea un ticket para contactar con soporte</p>
                   </div>
                 ) : (
-                  threads.map(thread => {
+                  localThreads.map(thread => {
                     const st = STATUS_LABELS[thread.status] ?? STATUS_LABELS.open
                     return (
                       <div key={thread.id} onClick={() => setSelectedThread(thread)} style={{ ...S.card, cursor: 'pointer' }}>
@@ -399,8 +454,18 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
                     ))}
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
-                    <input style={{ ...S.input, flex: 1 }} placeholder="Escribe tu mensaje..." value={newMessage} onChange={e => setNewMessage(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleSendMessage()} />
-                    <button onClick={handleSendMessage} disabled={sendingMsg || !newMessage} style={{ padding: '12px 16px', borderRadius: 14, fontSize: 13, fontWeight: 700, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', opacity: !newMessage ? 0.5 : 1 }}>
+                    <input
+                      style={{ ...S.input, flex: 1 }}
+                      placeholder="Escribe tu mensaje..."
+                      value={newMessage}
+                      onChange={e => setNewMessage(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={sendingMsg || !newMessage}
+                      style={{ padding: '12px 16px', borderRadius: 14, fontSize: 13, fontWeight: 700, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', opacity: !newMessage ? 0.5 : 1 }}
+                    >
                       →
                     </button>
                   </div>
@@ -419,7 +484,12 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
                   <span style={S.label}>Notas adicionales (opcional)</span>
-                  <textarea style={{ ...S.input, minHeight: 70, resize: 'vertical' } as React.CSSProperties} placeholder="Ej: factura del mes de enero 2025..." value={invoiceNotes} onChange={e => setInvoiceNotes(e.target.value)} />
+                  <textarea
+                    style={{ ...S.input, minHeight: 70, resize: 'vertical' } as React.CSSProperties}
+                    placeholder="Ej: factura del mes de enero 2025..."
+                    value={invoiceNotes}
+                    onChange={e => setInvoiceNotes(e.target.value)}
+                  />
                 </div>
                 <button onClick={handleRequestInvoice} disabled={invoiceLoading} style={S.btn}>
                   {invoiceLoading ? 'Enviando...' : 'Solicitar factura'}
@@ -428,10 +498,10 @@ export default function ConfiguracionClient({ account, profile, wallet, stores, 
               </div>
             </div>
 
-            {invoices.length > 0 && (
+            {localInvoices.length > 0 && (
               <div style={S.card}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: '0 0 10px' }}>Historial de solicitudes</p>
-                {invoices.map(inv => {
+                {localInvoices.map(inv => {
                   const st = STATUS_LABELS[inv.status] ?? STATUS_LABELS.pending
                   return (
                     <div key={inv.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #f0fafa' }}>

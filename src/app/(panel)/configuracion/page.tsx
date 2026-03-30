@@ -30,6 +30,7 @@ export default async function ConfiguracionPage() {
       threads={threads ?? []}
       invoices={invoices ?? []}
       userId={user!.id}
+      accountId={accountId}
     />
   )
 }
