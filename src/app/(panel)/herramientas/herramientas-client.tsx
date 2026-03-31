@@ -1,8 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 
+const F = 'system-ui,-apple-system,sans-serif'
 const ENVIO_DEFAULT = 7.5
 const CPA_DEFAULT = 9
 
@@ -11,42 +11,38 @@ function calcularPrecios(precioConIVA: number, conAnuncios: boolean) {
   const envio = ENVIO_DEFAULT
   const cpa = conAnuncios ? CPA_DEFAULT : 0
   const costeBase = precioSinIVA + envio + cpa
-
-  const p25 = costeBase / (1 - 0.25)
-  const p30 = costeBase / (1 - 0.30)
-  const p35 = costeBase / (1 - 0.35)
-  const cpaMax = precioConIVA * 0.25 - envio
-
-  return { precioSinIVA, envio, cpa, costeBase, p25, p30, p35, cpaMax }
+  return {
+    precioSinIVA,
+    envio,
+    cpa,
+    costeBase,
+    p25: costeBase / 0.75,
+    p30: costeBase / 0.70,
+    p35: costeBase / 0.65,
+    cpaMax: precioConIVA * 0.25 - envio,
+  }
 }
 
-function calcularRentabilidad(
-  inversion: number,
-  unidades: number,
-  precioVenta: number,
-  costeProducto: number,
-  costoEnvio: number,
-  diasCampana: number
-) {
-  const ingresosBrutos = unidades * precioVenta
-  const costesProducto = unidades * costeProducto
-  const costesEnvio = unidades * costoEnvio
-  const totalCostes = costesProducto + costesEnvio + inversion
+function calcularRentabilidad(inv: number, uni: number, pv: number, cp: number, ce: number, dias: number) {
+  const ingresosBrutos = uni * pv
+  const costesProducto = uni * cp
+  const costesEnvio = uni * ce
+  const totalCostes = costesProducto + costesEnvio + inv
   const beneficioNeto = ingresosBrutos - totalCostes
-  const margenBruto = ingresosBrutos > 0 ? ((ingresosBrutos - costesProducto - costesEnvio) / ingresosBrutos) * 100 : 0
-  const cpaReal = unidades > 0 ? inversion / unidades : 0
-  const roi = inversion > 0 ? ((beneficioNeto / inversion) * 100) : 0
-  const ventasDia = diasCampana > 0 ? unidades / diasCampana : 0
-
-  return { ingresosBrutos, beneficioNeto, margenBruto, cpaReal, roi, ventasDia }
+  const cpaReal = uni > 0 ? inv / uni : 0
+  const roi = inv > 0 ? (beneficioNeto / inv) * 100 : 0
+  const ventasDia = dias > 0 ? uni / dias : 0
+  return { ingresosBrutos, beneficioNeto, cpaReal, roi, ventasDia }
 }
+
+const card: React.CSSProperties = { background: '#fff', borderRadius: 22, padding: '20px', border: '1px solid #e8f4f3', marginBottom: 12 }
+const fieldWrap: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 9, padding: '12px 13px', background: '#f8fafc', border: '1.5px solid #e8f4f3', borderRadius: 13 }
+const fieldIn: React.CSSProperties = { border: 'none', background: 'transparent', fontSize: 14, fontWeight: 600, color: '#0f172a', outline: 'none', flex: 1, minWidth: 0, fontFamily: F }
+const flabel: React.CSSProperties = { fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 5, display: 'block', fontFamily: F }
 
 export default function HerramientasClient() {
-  // Calculadora
   const [precioArticulo, setPrecioArticulo] = useState('')
   const [conAnuncios, setConAnuncios] = useState(true)
-
-  // Consultor
   const [inversion, setInversion] = useState('')
   const [unidades, setUnidades] = useState('')
   const [precioVenta, setPrecioVenta] = useState('')
@@ -79,245 +75,207 @@ export default function HerramientasClient() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          inversion: rentData.inv,
-          unidades: rentData.uni,
-          precioVenta: rentData.pv,
-          costeProducto: rentData.cp,
-          costoEnvio: rentData.ce,
-          diasCampana: rentData.dias,
-          cpaReal: rent.cpaReal.toFixed(2),
-          roi: rent.roi.toFixed(1),
-          beneficioNeto: rent.beneficioNeto.toFixed(2),
+          inversion: rentData.inv, unidades: rentData.uni, precioVenta: rentData.pv,
+          costeProducto: rentData.cp, costoEnvio: rentData.ce, diasCampana: rentData.dias,
+          cpaReal: rent.cpaReal.toFixed(2), roi: rent.roi.toFixed(1), beneficioNeto: rent.beneficioNeto.toFixed(2),
         }),
       })
       const data = await res.json()
-      if (data.recomendacion) {
-        setRecomendacionIA(data.recomendacion)
-      } else {
-        setRecomendacionIA('Error al obtener la recomendación. Inténtalo de nuevo.')
-      }
+      setRecomendacionIA(data.recomendacion ?? 'Error al obtener la recomendación.')
     } catch {
       setRecomendacionIA('Error de conexión. Inténtalo de nuevo.')
     } finally {
       setLoadingIA(false)
     }
   }
-  const S = {
-    page: { background: '#f0fafa', minHeight: '100vh', maxWidth: 480, margin: '0 auto', fontFamily: 'sans-serif' } as React.CSSProperties,
-    header: { background: '#fff', padding: '44px 20px 16px', borderBottom: '1px solid #cce8e6' } as React.CSSProperties,
-    body: { padding: '16px 16px 100px', display: 'flex', flexDirection: 'column', gap: 16 } as React.CSSProperties,
-    card: { background: '#ffffff', borderRadius: 22, padding: 18, border: '1px solid #cce8e6' } as React.CSSProperties,
-    label: { fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px', display: 'block' } as React.CSSProperties,
-    input: { width: '100%', padding: '12px 14px', borderRadius: 14, border: '1px solid #cce8e6', background: '#f0fafa', fontSize: 14, fontWeight: 600, color: '#0f172a', outline: 'none' } as React.CSSProperties,
-    inputGrid: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 } as React.CSSProperties,
-    fieldLabel: { fontSize: 11, fontWeight: 600, color: '#64748b', margin: '0 0 4px', display: 'block' } as React.CSSProperties,
-    metricCard: { borderRadius: 16, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 2 } as React.CSSProperties,
-    metricLabel: { fontSize: 10, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' } as React.CSSProperties,
-    metricValue: { fontSize: 22, fontWeight: 700 } as React.CSSProperties,
-  }
 
   return (
-    <div style={S.page}>
-      <div style={S.header}>
-        <h1 style={{ fontSize: 22, fontWeight: 600, color: '#0f172a', margin: '0 0 4px' }}>Herramientas</h1>
-        <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Calculadora de precios y consultor de rentabilidad</p>
+    <div style={{ background: '#f0fafa', minHeight: '100vh', maxWidth: 480, margin: '0 auto', fontFamily: F }}>
+
+      {/* Header */}
+      <div style={{ background: '#fff', padding: '44px 20px 20px', borderBottom: '1px solid #e8f4f3' }}>
+        <h1 style={{ fontSize: 26, fontWeight: 800, color: '#0f172a', margin: '0 0 2px', letterSpacing: '-0.5px' }}>Herramientas</h1>
+        <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>Calculadora de precios y consultor de rentabilidad</p>
       </div>
 
-      <div style={S.body}>
+      <div style={{ padding: '16px 16px 100px' }}>
 
-        {/* ── CALCULADORA DE PRECIOS ── */}
-        <div style={S.card}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>Calculadora de precio</p>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Introduce el coste del artículo con IVA</p>
+        {/* ── CALCULADORA ── */}
+        <div style={card}>
+          {/* Título */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'linear-gradient(135deg,#2EC4B6,#1D9E75)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+            </div>
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Calculadora de precio</p>
+              <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Calcula tu precio de venta óptimo</p>
+            </div>
+          </div>
 
           {/* Input precio */}
-          <div style={{ marginBottom: 14 }}>
-            <span style={S.fieldLabel}>Coste del artículo (con IVA)</span>
-            <div style={{ display: 'flex', alignItems: 'center', background: '#f0fafa', border: '1px solid #cce8e6', borderRadius: 14, overflow: 'hidden' }}>
-              <input
-                type="number"
-                step="0.01"
-                placeholder="0.00"
-                value={precioArticulo}
-                onChange={e => setPrecioArticulo(e.target.value)}
-                style={{ ...S.input, border: 'none', background: 'transparent', flex: 1, borderRadius: 0 }}
-              />
-              <span style={{ padding: '0 14px', fontSize: 13, fontWeight: 700, color: '#0f766e' }}>€</span>
+          <div style={{ marginBottom: 12 }}>
+            <span style={flabel}>Coste del artículo con IVA</span>
+            <div style={{ ...fieldWrap }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b0bec5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              <input type="number" step="0.01" placeholder="0.00" value={precioArticulo} onChange={e => setPrecioArticulo(e.target.value)} style={fieldIn} />
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#0f766e', flexShrink: 0 }}>€</span>
             </div>
           </div>
 
-          {/* Toggle anuncios/orgánico */}
-          <div style={{ marginBottom: 16 }}>
-            <span style={S.fieldLabel}>Tipo de adquisición</span>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-              <button
-                onClick={() => setConAnuncios(true)}
-                style={{ padding: '11px 0', borderRadius: 14, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', background: conAnuncios ? '#2EC4B6' : '#f0fafa', color: conAnuncios ? '#fff' : '#64748b', transition: 'all 0.2s' }}
-              >
-                Con anuncios
-              </button>
-              <button
-                onClick={() => setConAnuncios(false)}
-                style={{ padding: '11px 0', borderRadius: 14, fontSize: 13, fontWeight: 700, border: 'none', cursor: 'pointer', background: !conAnuncios ? '#2EC4B6' : '#f0fafa', color: !conAnuncios ? '#fff' : '#64748b', transition: 'all 0.2s' }}
-              >
-                Orgánico
-              </button>
-            </div>
-          </div>
-
-          {/* Info estimaciones */}
-          <div style={{ background: '#f0fafa', borderRadius: 14, padding: '10px 14px', marginBottom: 16, border: '1px solid #cce8e6' }}>
-            <p style={{ fontSize: 11, color: '#64748b', margin: 0, lineHeight: 1.6 }}>
-              Estimaciones aplicadas: <strong style={{ color: '#0f766e' }}>Envío 7.50€</strong>
-              {conAnuncios && <> · <strong style={{ color: '#0f766e' }}>CPA 9.00€</strong></>}
-            </p>
-          </div>
-
-          {/* Resultados */}
-          <AnimatePresence>
-            {calc && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-
-                {/* Desglose costes */}
-                <div style={{ background: '#f0fafa', borderRadius: 14, padding: '12px 14px', border: '1px solid #cce8e6' }}>
-                  <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 8px' }}>Desglose de costes</p>
-                  {[
-                    { label: 'Coste artículo (sin IVA)', value: calc.precioSinIVA },
-                    { label: 'Coste envío estimado', value: calc.envio },
-                    ...(conAnuncios ? [{ label: 'CPA estimado', value: calc.cpa }] : []),
-                    { label: 'Coste total', value: calc.costeBase, highlight: true },
-                  ].map((row, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', borderTop: i > 0 ? '1px solid #e2f0ef' : 'none' }}>
-                      <span style={{ fontSize: 12, color: row.highlight ? '#0f172a' : '#64748b', fontWeight: row.highlight ? 700 : 400 }}>{row.label}</span>
-                      <span style={{ fontSize: 12, fontWeight: 700, color: row.highlight ? '#0f766e' : '#0f172a' }}>{row.value.toFixed(2)}€</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Precios recomendados */}
-                <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '4px 0 6px' }}>Precio de venta recomendado</p>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                  {[
-                    { label: '25%', value: calc.p25, color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0' },
-                    { label: '30%', value: calc.p30, color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd' },
-                    { label: '35%', value: calc.p35, color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff' },
-                  ].map(m => (
-                    <div key={m.label} style={{ background: m.bg, border: `1px solid ${m.border}`, borderRadius: 14, padding: '12px 10px', textAlign: 'center' }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: m.color, margin: '0 0 4px', textTransform: 'uppercase' }}>Margen {m.label}</p>
-                      <p style={{ fontSize: 18, fontWeight: 800, color: m.color, margin: 0 }}>{m.value.toFixed(2)}€</p>
-                    </div>
-                  ))}
-                </div>
-
-                {/* CPA máximo */}
-                {conAnuncios && (
-                  <div style={{ background: calc.cpaMax > 0 ? '#fff7ed' : '#fef2f2', border: `1px solid ${calc.cpaMax > 0 ? '#fed7aa' : '#fecaca'}`, borderRadius: 14, padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 2px' }}>CPA máximo recomendado</p>
-                      <p style={{ fontSize: 11, color: '#92400e', margin: 0 }}>No superar este coste por adquisición</p>
-                    </div>
-                    <p style={{ fontSize: 22, fontWeight: 800, color: calc.cpaMax > 0 ? '#ea580c' : '#dc2626', margin: 0 }}>{calc.cpaMax.toFixed(2)}€</p>
-                  </div>
-                )}
-
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* ── CONSULTOR DE RENTABILIDAD ── */}
-        <div style={S.card}>
-          <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>Consultor de rentabilidad</p>
-          <p style={{ fontSize: 12, color: '#64748b', margin: '0 0 16px' }}>Analiza el rendimiento de tu campaña</p>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-            <div style={S.inputGrid}>
-              {[
-                { label: 'Inversión en ads (€)', val: inversion, set: setInversion, placeholder: '500' },
-                { label: 'Unidades vendidas', val: unidades, set: setUnidades, placeholder: '45' },
-                { label: 'Precio de venta (€)', val: precioVenta, set: setPrecioVenta, placeholder: '39.99' },
-                { label: 'Coste producto (€)', val: costeProducto, set: setCosteProducto, placeholder: '8.50' },
-                { label: 'Coste envío (€)', val: costoEnvio, set: setCostoEnvio, placeholder: '7.50' },
-                { label: 'Días de campaña', val: diasCampana, set: setDiasCampana, placeholder: '30' },
-              ].map(f => (
-                <div key={f.label}>
-                  <span style={S.fieldLabel}>{f.label}</span>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder={f.placeholder}
-                    value={f.val}
-                    onChange={e => f.set(e.target.value)}
-                    style={S.input}
-                  />
-                </div>
+          {/* Toggle */}
+          <div style={{ marginBottom: 12 }}>
+            <span style={flabel}>Tipo de adquisición</span>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              {[{ label: 'Con anuncios', val: true }, { label: 'Orgánico', val: false }].map(opt => (
+                <button key={String(opt.val)} onClick={() => setConAnuncios(opt.val)}
+                  style={{ padding: '12px 0', borderRadius: 13, fontSize: 13, fontWeight: 700, border: conAnuncios === opt.val ? '2px solid #2EC4B6' : '2px solid #e8f4f3', cursor: 'pointer', background: conAnuncios === opt.val ? '#f0fafa' : '#fff', color: conAnuncios === opt.val ? '#0f766e' : '#94a3b8', transition: 'all 0.15s', fontFamily: F }}>
+                  {opt.label}
+                </button>
               ))}
             </div>
           </div>
 
-          {/* Resultados consultor */}
-          <AnimatePresence>
-            {rent && (
-              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Estimaciones */}
+          <div style={{ background: '#f0fafa', borderRadius: 12, padding: '10px 13px', marginBottom: 16, border: '1px solid #e8f4f3', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <p style={{ fontSize: 12, color: '#64748b', margin: 0, fontFamily: F }}>
+              Estimaciones: <strong style={{ color: '#0f766e' }}>Envío 7.50€</strong>
+              {conAnuncios && <> · <strong style={{ color: '#0f766e' }}>CPA 9.00€</strong></>}
+            </p>
+          </div>
 
-                {/* Métricas principales */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <div style={{ ...S.metricCard, background: rent.beneficioNeto >= 0 ? '#f0fdf4' : '#fef2f2', border: `1px solid ${rent.beneficioNeto >= 0 ? '#bbf7d0' : '#fecaca'}` }}>
-                    <span style={{ ...S.metricLabel, color: rent.beneficioNeto >= 0 ? '#0f766e' : '#991b1b' }}>Beneficio neto</span>
-                    <span style={{ ...S.metricValue, color: rent.beneficioNeto >= 0 ? '#2EC4B6' : '#dc2626' }}>
-                      {rent.beneficioNeto >= 0 ? '+' : ''}{rent.beneficioNeto.toFixed(2)}€
-                    </span>
+          {/* Resultados calculadora */}
+          {calc && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+              {/* Desglose */}
+              <div style={{ background: '#f8fafc', borderRadius: 16, padding: '14px', border: '1px solid #e8f4f3' }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 10px', fontFamily: F }}>Desglose de costes</p>
+                {[
+                  { label: 'Artículo sin IVA', value: calc.precioSinIVA, highlight: false },
+                  { label: 'Envío estimado', value: calc.envio, highlight: false },
+                  ...(conAnuncios ? [{ label: 'CPA estimado', value: calc.cpa, highlight: false }] : []),
+                  { label: 'Coste total', value: calc.costeBase, highlight: true },
+                ].map((row, i, arr) => (
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderTop: i > 0 ? '1px solid #f1f5f9' : 'none' }}>
+                    <span style={{ fontSize: 13, color: row.highlight ? '#0f172a' : '#64748b', fontWeight: row.highlight ? 700 : 400, fontFamily: F }}>{row.label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 800, color: row.highlight ? '#0f766e' : '#374151', fontFamily: F }}>{row.value.toFixed(2)}€</span>
                   </div>
-                  <div style={{ ...S.metricCard, background: rent.roi >= 0 ? '#f0f9ff' : '#fef2f2', border: `1px solid ${rent.roi >= 0 ? '#bae6fd' : '#fecaca'}` }}>
-                    <span style={{ ...S.metricLabel, color: rent.roi >= 0 ? '#0284c7' : '#991b1b' }}>ROI</span>
-                    <span style={{ ...S.metricValue, color: rent.roi >= 0 ? '#0284c7' : '#dc2626' }}>
-                      {rent.roi >= 0 ? '+' : ''}{rent.roi.toFixed(1)}%
-                    </span>
+                ))}
+              </div>
+
+              {/* Precios recomendados */}
+              <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '4px 0 0', fontFamily: F }}>Precio de venta recomendado</p>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                {[
+                  { label: '25%', value: calc.p25, color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0' },
+                  { label: '30%', value: calc.p30, color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd' },
+                  { label: '35%', value: calc.p35, color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff' },
+                ].map(m => (
+                  <div key={m.label} style={{ background: m.bg, border: `1.5px solid ${m.border}`, borderRadius: 16, padding: '14px 10px', textAlign: 'center' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: m.color, margin: '0 0 5px', textTransform: 'uppercase', fontFamily: F }}>Margen {m.label}</p>
+                    <p style={{ fontSize: 19, fontWeight: 800, color: m.color, margin: 0, fontFamily: F }}>{m.value.toFixed(2)}€</p>
                   </div>
-                  <div style={{ ...S.metricCard, background: '#fff7ed', border: '1px solid #fed7aa' }}>
-                    <span style={{ ...S.metricLabel, color: '#9a3412' }}>CPA real</span>
-                    <span style={{ ...S.metricValue, color: '#ea580c' }}>{rent.cpaReal.toFixed(2)}€</span>
+                ))}
+              </div>
+
+              {/* CPA máximo */}
+              {conAnuncios && (
+                <div style={{ background: calc.cpaMax > 0 ? '#fff7ed' : '#fef2f2', border: `1.5px solid ${calc.cpaMax > 0 ? '#fed7aa' : '#fecaca'}`, borderRadius: 16, padding: '14px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: '#9a3412', textTransform: 'uppercase', letterSpacing: '0.05em', margin: '0 0 2px', fontFamily: F }}>CPA máximo</p>
+                    <p style={{ fontSize: 11, color: '#92400e', margin: 0, fontFamily: F }}>No superar este coste por venta</p>
                   </div>
-                  <div style={{ ...S.metricCard, background: '#faf5ff', border: '1px solid #e9d5ff' }}>
-                    <span style={{ ...S.metricLabel, color: '#7c3aed' }}>Ventas/día</span>
-                    <span style={{ ...S.metricValue, color: '#7c3aed' }}>{rent.ventasDia.toFixed(1)}</span>
-                  </div>
+                  <p style={{ fontSize: 24, fontWeight: 800, color: calc.cpaMax > 0 ? '#ea580c' : '#dc2626', margin: 0, fontFamily: F }}>{calc.cpaMax.toFixed(2)}€</p>
                 </div>
+              )}
+            </div>
+          )}
+        </div>
 
-                {/* Ingresos totales */}
-                <div style={{ background: '#f0fafa', borderRadius: 14, padding: '12px 16px', border: '1px solid #cce8e6', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600 }}>Ingresos brutos totales</span>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: '#0f172a' }}>{rent.ingresosBrutos.toFixed(2)}€</span>
+        {/* ── CONSULTOR ── */}
+        <div style={card}>
+          {/* Título */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+            <div style={{ width: 38, height: 38, borderRadius: 12, background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+            </div>
+            <div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Consultor de rentabilidad</p>
+              <p style={{ fontSize: 12, color: '#64748b', margin: 0 }}>Analiza el rendimiento de tu campaña</p>
+            </div>
+          </div>
+
+          {/* Inputs */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+            {[
+              { label: 'Inversión ads (€)', val: inversion, set: setInversion, ph: '500', icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+              { label: 'Unidades vendidas', val: unidades, set: setUnidades, ph: '45', icon: 'M20 7H4a2 2 0 00-2 2v6a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16' },
+              { label: 'Precio de venta (€)', val: precioVenta, set: setPrecioVenta, ph: '39.99', icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
+              { label: 'Coste producto (€)', val: costeProducto, set: setCosteProducto, ph: '8.50', icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z' },
+              { label: 'Coste envío (€)', val: costoEnvio, set: setCostoEnvio, ph: '7.50', icon: 'M5 12h14M12 5l7 7-7 7' },
+              { label: 'Días campaña', val: diasCampana, set: setDiasCampana, ph: '30', icon: 'M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01' },
+            ].map(f => (
+              <div key={f.label}>
+                <span style={flabel}>{f.label}</span>
+                <div style={fieldWrap}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#b0bec5" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><path d={f.icon}/></svg>
+                  <input type="number" step="0.01" placeholder={f.ph} value={f.val} onChange={e => f.set(e.target.value)} style={{ ...fieldIn, fontSize: 13 }} />
                 </div>
+              </div>
+            ))}
+          </div>
 
-                {/* Recomendación IA */}
-                <div style={{ background: '#f0fafa', borderRadius: 16, padding: '14px 16px', border: '1px solid #cce8e6' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: recomendacionIA ? 10 : 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: '#0f766e', margin: 0 }}>✦ Recomendación IA</p>
-                    <button
-                      onClick={pedirRecomendacionIA}
-                      disabled={loadingIA}
-                      style={{ padding: '7px 14px', borderRadius: 20, fontSize: 11, fontWeight: 700, border: 'none', background: '#2EC4B6', color: '#fff', cursor: 'pointer', opacity: loadingIA ? 0.6 : 1 }}
-                    >
-                      {loadingIA ? 'Analizando...' : 'Analizar con IA'}
-                    </button>
+          {/* Resultados */}
+          {rent && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+              {/* Métricas */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                {[
+                  { label: 'Beneficio neto', value: `${rent.beneficioNeto >= 0 ? '+' : ''}${rent.beneficioNeto.toFixed(2)}€`, color: rent.beneficioNeto >= 0 ? '#0f766e' : '#dc2626', bg: rent.beneficioNeto >= 0 ? '#f0fdf4' : '#fef2f2', border: rent.beneficioNeto >= 0 ? '#bbf7d0' : '#fecaca', valueColor: rent.beneficioNeto >= 0 ? '#2EC4B6' : '#dc2626' },
+                  { label: 'ROI', value: `${rent.roi >= 0 ? '+' : ''}${rent.roi.toFixed(1)}%`, color: rent.roi >= 0 ? '#0284c7' : '#dc2626', bg: rent.roi >= 0 ? '#f0f9ff' : '#fef2f2', border: rent.roi >= 0 ? '#bae6fd' : '#fecaca', valueColor: rent.roi >= 0 ? '#0284c7' : '#dc2626' },
+                  { label: 'CPA real', value: `${rent.cpaReal.toFixed(2)}€`, color: '#9a3412', bg: '#fff7ed', border: '#fed7aa', valueColor: '#ea580c' },
+                  { label: 'Ventas / día', value: rent.ventasDia.toFixed(1), color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff', valueColor: '#7c3aed' },
+                ].map(m => (
+                  <div key={m.label} style={{ background: m.bg, border: `1.5px solid ${m.border}`, borderRadius: 16, padding: '14px 16px' }}>
+                    <p style={{ fontSize: 10, fontWeight: 700, color: m.color, textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 4px', fontFamily: F }}>{m.label}</p>
+                    <p style={{ fontSize: 22, fontWeight: 800, color: m.valueColor, margin: 0, fontFamily: F }}>{m.value}</p>
                   </div>
-                  <AnimatePresence>
-                    {recomendacionIA && (
-                      <motion.p
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}
-                      >
-                        {recomendacionIA}
-                      </motion.p>
-                    )}
-                  </AnimatePresence>
-                </div>
+                ))}
+              </div>
 
-              </motion.div>
-            )}
-          </AnimatePresence>
+              {/* Ingresos */}
+              <div style={{ background: '#f8fafc', borderRadius: 16, padding: '14px 16px', border: '1px solid #e8f4f3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: 13, color: '#64748b', fontWeight: 600, fontFamily: F }}>Ingresos brutos totales</span>
+                <span style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', fontFamily: F }}>{rent.ingresosBrutos.toFixed(2)}€</span>
+              </div>
+
+              {/* Recomendación IA */}
+              <div style={{ background: 'linear-gradient(135deg,rgba(139,92,246,0.06),rgba(124,58,237,0.03))', borderRadius: 16, padding: '14px 16px', border: '1.5px solid #e9d5ff' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: recomendacionIA ? 12 : 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <div style={{ width: 24, height: 24, borderRadius: 7, background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: '#7c3aed', margin: 0, fontFamily: F }}>Recomendación IA</p>
+                  </div>
+                  <button
+                    onClick={pedirRecomendacionIA}
+                    disabled={loadingIA}
+                    style={{ padding: '8px 14px', borderRadius: 12, fontSize: 12, fontWeight: 700, border: '2px solid #8b5cf6', background: '#fff', color: '#7c3aed', cursor: 'pointer', opacity: loadingIA ? 0.6 : 1, fontFamily: F, boxShadow: '0 2px 6px rgba(139,92,246,0.1)', whiteSpace: 'nowrap' }}
+                  >
+                    {loadingIA ? 'Analizando...' : 'Analizar'}
+                  </button>
+                </div>
+                {recomendacionIA && (
+                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0, fontFamily: F }}>{recomendacionIA}</p>
+                )}
+              </div>
+
+            </div>
+          )}
         </div>
 
       </div>
