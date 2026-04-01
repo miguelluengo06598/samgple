@@ -13,12 +13,20 @@ export default async function ConfiguracionPage() {
   const { data: accountUser } = await admin.from('account_users').select('account_id').eq('user_id', user.id).single()
   const accountId = accountUser!.account_id
 
-  const [{ data: account }, { data: wallet }, { data: stores }, { data: threads }, { data: invoices }] = await Promise.all([
+  const [
+    { data: account },
+    { data: wallet },
+    { data: stores },
+    { data: threads },
+    { data: invoices },
+    { data: vapiConfig },
+  ] = await Promise.all([
     admin.from('accounts').select('name,email').eq('id', accountId).single(),
     admin.from('wallets').select('balance').eq('account_id', accountId).single(),
     admin.from('stores').select('id').eq('account_id', accountId),
     admin.from('support_threads').select('id').eq('account_id', accountId).eq('status', 'open'),
     admin.from('invoice_requests').select('id').eq('account_id', accountId).eq('status', 'pending'),
+    admin.from('vapi_configs').select('active,assistant_name').eq('account_id', accountId).single(),
   ])
 
   const F = 'system-ui,-apple-system,sans-serif'
@@ -27,6 +35,8 @@ export default async function ConfiguracionPage() {
   const openTickets = threads?.length ?? 0
   const pendingInvoices = invoices?.length ?? 0
   const storeCount = stores?.length ?? 0
+  const vapiActive = vapiConfig?.active ?? false
+  const assistantName = vapiConfig?.assistant_name ?? 'Asistente'
 
   type GroupItem = { href: string; label: string; desc: string; iconColor: string; iconBg: string; svgPath: string; badge?: string; badgeColor?: string; badgeBg?: string }
   type Group = { items: GroupItem[] }
@@ -34,21 +44,82 @@ export default async function ConfiguracionPage() {
   const groups: Group[] = [
     {
       items: [
-        { href: '/configuracion/cuenta', label: 'Cuenta', desc: 'Nombre, email, contraseña y zona horaria', iconColor: '#2EC4B6', iconBg: '#f0fafa', svgPath: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 7m-4 0a4 4 0 108 0a4 4 0 10-8 0' },
-        { href: '/configuracion/tiendas', label: 'Tiendas', desc: 'Conecta y gestiona tus tiendas Shopify', iconColor: '#16a34a', iconBg: '#f0fdf4', svgPath: 'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z M3 6h18', badge: storeCount > 0 ? `${storeCount} conectada${storeCount > 1 ? 's' : ''}` : undefined, badgeColor: '#15803d', badgeBg: '#dcfce7' },
-      ]
+        {
+          href: '/configuracion/cuenta',
+          label: 'Cuenta',
+          desc: 'Nombre, email, contraseña y zona horaria',
+          iconColor: '#2EC4B6', iconBg: '#f0fafa',
+          svgPath: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 7m-4 0a4 4 0 108 0a4 4 0 10-8 0',
+        },
+        {
+          href: '/configuracion/tiendas',
+          label: 'Tiendas',
+          desc: 'Conecta y gestiona tus tiendas Shopify',
+          iconColor: '#16a34a', iconBg: '#f0fdf4',
+          svgPath: 'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z M3 6h18',
+          badge: storeCount > 0 ? `${storeCount} conectada${storeCount > 1 ? 's' : ''}` : undefined,
+          badgeColor: '#15803d', badgeBg: '#dcfce7',
+        },
+      ],
     },
     {
       items: [
-        { href: '/configuracion/tokens', label: 'Tokens', desc: 'Saldo, cupones y packs de tokens', iconColor: '#d97706', iconBg: '#fffbeb', svgPath: 'M12 2a10 10 0 100 20A10 10 0 0012 2z M12 6v6l4 2', badge: balance, badgeColor: '#92400e', badgeBg: '#fef3c7' },
-        { href: '/configuracion/facturas', label: 'Facturas', desc: 'Solicita y gestiona tus facturas', iconColor: '#8b5cf6', iconBg: '#faf5ff', svgPath: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6', badge: pendingInvoices > 0 ? `${pendingInvoices} pendiente${pendingInvoices > 1 ? 's' : ''}` : undefined, badgeColor: '#92400e', badgeBg: '#fef3c7' },
-      ]
+        {
+          href: '/configuracion/asistente',
+          label: vapiActive ? `Asistente · ${assistantName}` : 'Asistente IA',
+          desc: vapiActive ? 'Llamadas activas · VAPI + Twilio configurado' : 'Configura tu agente de llamadas VAPI',
+          iconColor: vapiActive ? '#0f766e' : '#2EC4B6',
+          iconBg: vapiActive ? '#f0fdf4' : '#f0fafa',
+          svgPath: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z',
+          badge: vapiActive ? 'Activo' : 'Inactivo',
+          badgeColor: vapiActive ? '#15803d' : '#92400e',
+          badgeBg: vapiActive ? '#dcfce7' : '#fef3c7',
+        },
+      ],
     },
     {
       items: [
-        { href: '/configuracion/soporte', label: 'Soporte', desc: 'Chat y tickets con el equipo', iconColor: '#3b82f6', iconBg: '#eff6ff', svgPath: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z', badge: openTickets > 0 ? `${openTickets} abierto${openTickets > 1 ? 's' : ''}` : undefined, badgeColor: '#1d4ed8', badgeBg: '#dbeafe' },
-        { href: '/configuracion/informe', label: 'Informe semanal', desc: 'Análisis IA enviado a tu email', iconColor: '#ec4899', iconBg: '#fdf2f8', svgPath: 'M18 20v-10 M12 20v-16 M6 20v-6', badge: '0.5 tkn', badgeColor: '#9d174d', badgeBg: '#fce7f3' },
-      ]
+        {
+          href: '/configuracion/tokens',
+          label: 'Tokens',
+          desc: 'Saldo, cupones y packs de tokens',
+          iconColor: '#d97706', iconBg: '#fffbeb',
+          svgPath: 'M12 2a10 10 0 100 20A10 10 0 0012 2z M12 6v6l4 2',
+          badge: balance,
+          badgeColor: '#92400e', badgeBg: '#fef3c7',
+        },
+        {
+          href: '/configuracion/facturas',
+          label: 'Facturas',
+          desc: 'Solicita y gestiona tus facturas',
+          iconColor: '#8b5cf6', iconBg: '#faf5ff',
+          svgPath: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6',
+          badge: pendingInvoices > 0 ? `${pendingInvoices} pendiente${pendingInvoices > 1 ? 's' : ''}` : undefined,
+          badgeColor: '#92400e', badgeBg: '#fef3c7',
+        },
+      ],
+    },
+    {
+      items: [
+        {
+          href: '/configuracion/soporte',
+          label: 'Soporte',
+          desc: 'Chat y tickets con el equipo',
+          iconColor: '#3b82f6', iconBg: '#eff6ff',
+          svgPath: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z',
+          badge: openTickets > 0 ? `${openTickets} abierto${openTickets > 1 ? 's' : ''}` : undefined,
+          badgeColor: '#1d4ed8', badgeBg: '#dbeafe',
+        },
+        {
+          href: '/configuracion/informe',
+          label: 'Informe semanal',
+          desc: 'Análisis IA enviado a tu email',
+          iconColor: '#ec4899', iconBg: '#fdf2f8',
+          svgPath: 'M18 20v-10 M12 20v-16 M6 20v-6',
+          badge: '0.5 tkn',
+          badgeColor: '#9d174d', badgeBg: '#fce7f3',
+        },
+      ],
     },
   ]
 
@@ -67,6 +138,26 @@ export default async function ConfiguracionPage() {
       </div>
 
       <div style={{ padding: '16px 16px 120px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {/* Banner si VAPI no está configurado */}
+        {!vapiActive && (
+          <Link href="/configuracion/asistente" style={{ textDecoration: 'none' }}>
+            <div style={{ background: 'linear-gradient(135deg,rgba(46,196,182,0.08),rgba(29,158,117,0.04))', borderRadius: 18, padding: '14px 16px', border: '1.5px solid rgba(46,196,182,0.25)', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#2EC4B6,#1D9E75)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 13, fontWeight: 800, color: '#0f172a', margin: 0 }}>Activa tu asistente de llamadas</p>
+                <p style={{ fontSize: 12, color: '#64748b', margin: '2px 0 0' }}>Conecta VAPI y Twilio para confirmar pedidos automáticamente</p>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </div>
+          </Link>
+        )}
+
+        {/* Grupos */}
         {groups.map((group, gi) => (
           <div key={gi} style={{ background: '#fff', borderRadius: 20, overflow: 'hidden', border: '1px solid #e8f4f3' }}>
             {group.items.map((item, ii) => (
@@ -82,7 +173,11 @@ export default async function ConfiguracionPage() {
                   <p style={{ fontSize: 11, color: '#94a3b8', margin: '1px 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: F }}>{item.desc}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                  {item.badge && <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: item.badgeBg, color: item.badgeColor, fontFamily: F }}>{item.badge}</span>}
+                  {item.badge && (
+                    <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: item.badgeBg, color: item.badgeColor, fontFamily: F }}>
+                      {item.badge}
+                    </span>
+                  )}
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8d8d6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                 </div>
               </Link>
