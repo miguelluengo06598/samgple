@@ -33,9 +33,30 @@ export default function ContactForm() {
     }
     setError('')
     setSending(true)
-    await new Promise(r => setTimeout(r, 1200))
-    setSending(false)
-    setSent(true)
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: form.name,
+          email: form.email,
+          company: form.company,
+          orders: form.orders,
+          message: form.message,
+          demo: form.demo,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? 'Error al enviar. Inténtalo de nuevo.')
+      } else {
+        setSent(true)
+      }
+    } catch {
+      setError('Error de conexión. Inténtalo de nuevo.')
+    } finally {
+      setSending(false)
+    }
   }
 
   if (sent) {

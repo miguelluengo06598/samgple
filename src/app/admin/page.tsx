@@ -6,15 +6,16 @@ import { createClient } from '@/lib/supabase/client'
 
 const F = 'system-ui,-apple-system,sans-serif'
 
-type Section = 'stats' | 'users' | 'support' | 'invoices' | 'coupons' | 'packs'
+type Section = 'stats' | 'users' | 'support' | 'invoices' | 'coupons' | 'packs' | 'contacts'
 
 const NAV: { key: Section; label: string; color: string; iconPath: string }[] = [
-  { key: 'stats',    label: 'Resumen',  color: '#2EC4B6', iconPath: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z' },
-  { key: 'users',   label: 'Usuarios', color: '#3b82f6', iconPath: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75' },
-  { key: 'support', label: 'Soporte',  color: '#f59e0b', iconPath: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
-  { key: 'invoices',label: 'Facturas', color: '#8b5cf6', iconPath: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8' },
-  { key: 'coupons', label: 'Cupones',  color: '#ec4899', iconPath: 'M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z M7 7h.01' },
-  { key: 'packs',   label: 'Packs',    color: '#ea580c', iconPath: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  { key: 'stats',    label: 'Resumen',   color: '#2EC4B6', iconPath: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z' },
+  { key: 'users',   label: 'Usuarios',  color: '#3b82f6', iconPath: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z M23 21v-2a4 4 0 00-3-3.87 M16 3.13a4 4 0 010 7.75' },
+  { key: 'support', label: 'Soporte',   color: '#f59e0b', iconPath: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
+  { key: 'invoices',label: 'Facturas',  color: '#8b5cf6', iconPath: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8' },
+  { key: 'coupons', label: 'Cupones',   color: '#ec4899', iconPath: 'M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z M7 7h.01' },
+  { key: 'packs',   label: 'Packs',     color: '#ea580c', iconPath: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z' },
+  { key: 'contacts',label: 'Contactos', color: '#22c55e', iconPath: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
 ]
 
 const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }> = {
@@ -28,6 +29,9 @@ const STATUS_CONFIG: Record<string, { bg: string; color: string; label: string }
   in_review:   { bg: '#ede9fe', color: '#6d28d9', label: 'En revisión' },
   sent:        { bg: '#dcfce7', color: '#15803d', label: 'Enviada' },
   rejected:    { bg: '#fee2e2', color: '#b91c1c', label: 'Rechazada' },
+  new:         { bg: '#dbeafe', color: '#1d4ed8', label: 'Nuevo' },
+  read:        { bg: '#f1f5f9', color: '#475569', label: 'Leído' },
+  replied:     { bg: '#dcfce7', color: '#15803d', label: 'Respondido' },
 }
 
 function Badge({ status }: { status: string }) {
@@ -67,14 +71,19 @@ export default function AdminPage() {
   const [newPack, setNewPack] = useState({ name: '', tokens: '', price_eur: '', lemon_url: '' })
   const [saving, setSaving] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [expandedMsg, setExpandedMsg] = useState<string | null>(null)
 
   const loadSection = useCallback(async (s: Section) => {
     setLoading(true)
     try {
       const endpoints: Record<Section, string> = {
-        stats: '/api/admin/stats', users: '/api/admin/users',
-        support: '/api/admin/support', invoices: '/api/admin/invoices',
-        coupons: '/api/admin/coupons', packs: '/api/admin/packs',
+        stats:    '/api/admin/stats',
+        users:    '/api/admin/users',
+        support:  '/api/admin/support',
+        invoices: '/api/admin/invoices',
+        coupons:  '/api/admin/coupons',
+        packs:    '/api/admin/packs',
+        contacts: '/api/admin/contacts',
       }
       const res = await fetch(endpoints[s])
       if (res.status === 401) { router.push('/admin/login'); return }
@@ -110,6 +119,9 @@ export default function AdminPage() {
     })
     channel.on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
       if (section === 'stats') loadSection('stats')
+    })
+    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'contact_messages' }, () => {
+      if (section === 'contacts') loadSection('contacts')
     })
     channel.subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -173,7 +185,6 @@ export default function AdminPage() {
       <div className="adm-sidebar"
         style={{ position: 'fixed', top: 0, left: sidebarOpen ? 0 : -270, bottom: 0, width: 230, background: '#fff', borderRight: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', padding: '0 10px 16px', zIndex: 20, transition: 'left 0.25s cubic-bezier(0.32,0.72,0,1)', boxShadow: sidebarOpen ? '4px 0 24px rgba(0,0,0,0.12)' : 'none' }}>
 
-        {/* Logo */}
         <div style={{ padding: '22px 8px 16px', borderBottom: '1px solid #f1f5f9', marginBottom: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg,#2EC4B6,#1D9E75)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -186,10 +197,11 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Nav items */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2, overflowY: 'auto' }}>
           {NAV.map(n => {
             const active = section === n.key
+            const isContacts = n.key === 'contacts'
+            const newContacts = isContacts ? (data.contacts?.contacts ?? []).filter((c: any) => c.status === 'new').length : 0
             return (
               <button key={n.key}
                 onClick={() => { setSection(n.key); setSidebarOpen(false); setSelectedUser(null); setSelectedThread(null) }}
@@ -197,8 +209,11 @@ export default function AdminPage() {
                 <div style={{ width: 32, height: 32, borderRadius: 10, background: active ? n.color : '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, transition: 'all 0.15s' }}>
                   <Icon path={n.iconPath} color={active ? '#fff' : '#94a3b8'} size={14} />
                 </div>
-                <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? n.color : '#64748b' }}>{n.label}</span>
-                {active && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: n.color, flexShrink: 0 }} />}
+                <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, color: active ? n.color : '#64748b', flex: 1 }}>{n.label}</span>
+                {isContacts && newContacts > 0 && (
+                  <span style={{ fontSize: 10, fontWeight: 800, padding: '2px 7px', borderRadius: 20, background: '#22c55e', color: '#fff', flexShrink: 0 }}>{newContacts}</span>
+                )}
+                {active && !isContacts && <div style={{ marginLeft: 'auto', width: 6, height: 6, borderRadius: '50%', background: n.color, flexShrink: 0 }} />}
               </button>
             )
           })}
@@ -211,12 +226,11 @@ export default function AdminPage() {
         </button>
       </div>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="adm-main" style={{ flex: 1, padding: '24px 28px', minHeight: '100vh', marginLeft: 0 }}>
 
         {/* Top bar */}
-        <div className="adm-topbar"
-          style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12 }}>
+        <div className="adm-topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button className="adm-menu-btn" onClick={() => setSidebarOpen(true)}
               style={{ width: 38, height: 38, borderRadius: 12, border: '1.5px solid #f1f5f9', background: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -241,12 +255,12 @@ export default function AdminPage() {
         {section === 'stats' && (
           <div className="adm-stats" style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12 }}>
             {[
-              { label: 'Cuentas', value: data.stats?.stats?.total_accounts ?? '—', color: '#2EC4B6', bg: '#f0fdf4', border: '#bbf7d0', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z' },
-              { label: 'Pedidos', value: data.stats?.stats?.total_orders ?? '—', color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z' },
+              { label: 'Cuentas',  value: data.stats?.stats?.total_accounts ?? '—', color: '#2EC4B6', bg: '#f0fdf4', border: '#bbf7d0', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2 M9 11a4 4 0 100-8 4 4 0 000 8z' },
+              { label: 'Pedidos',  value: data.stats?.stats?.total_orders ?? '—',   color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z' },
               { label: 'Entregados', value: data.stats?.stats?.total_delivered ?? '—', color: '#16a34a', bg: '#dcfce7', border: '#bbf7d0', icon: 'M20 6L9 17l-5-5' },
               { label: 'Ingresos', value: `${Number(data.stats?.stats?.total_revenue ?? 0).toFixed(0)}€`, color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0', icon: 'M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6' },
-              { label: 'Tokens', value: Number(data.stats?.stats?.total_tokens_balance ?? 0).toFixed(1), color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff', icon: 'M12 2a10 10 0 100 20A10 10 0 0012 2z M12 6v6l4 2' },
-              { label: 'Tickets', value: data.stats?.stats?.open_tickets ?? '—', color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
+              { label: 'Tokens',   value: Number(data.stats?.stats?.total_tokens_balance ?? 0).toFixed(1), color: '#7c3aed', bg: '#faf5ff', border: '#e9d5ff', icon: 'M12 2a10 10 0 100 20A10 10 0 0012 2z M12 6v6l4 2' },
+              { label: 'Tickets',  value: data.stats?.stats?.open_tickets ?? '—',   color: '#ea580c', bg: '#fff7ed', border: '#fed7aa', icon: 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z' },
               { label: 'Facturas', value: data.stats?.stats?.pending_invoices ?? '—', color: '#dc2626', bg: '#fef2f2', border: '#fecaca', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6' },
             ].map((s, i) => (
               <div key={i} style={{ background: s.bg, borderRadius: 20, padding: '16px 18px', border: `1.5px solid ${s.border}` }}>
@@ -599,6 +613,105 @@ export default function AdminPage() {
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ea580c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── CONTACTS ── */}
+        {section === 'contacts' && (
+          <div style={card}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', margin: 0, fontFamily: F }}>Mensajes de contacto</p>
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontFamily: F }}>
+                  {(data.contacts?.contacts ?? []).filter((c: any) => c.status === 'new').length} nuevos ·{' '}
+                  {(data.contacts?.contacts ?? []).length} total
+                </p>
+              </div>
+            </div>
+            <div className="adm-table-wrap">
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    <th style={th}>Contacto</th>
+                    <th style={th} className="adm-hide-mobile">Empresa</th>
+                    <th style={th} className="adm-hide-mobile">Pedidos/mes</th>
+                    <th style={th}>Mensaje</th>
+                    <th style={th}>Demo</th>
+                    <th style={th}>Estado</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {loading ? (
+                    <tr><td colSpan={6} style={{ padding: 24, color: '#94a3b8', textAlign: 'center', fontFamily: F }}>Cargando...</td></tr>
+                  ) : (data.contacts?.contacts ?? []).length === 0 ? (
+                    <tr><td colSpan={6} style={{ padding: 32, color: '#94a3b8', textAlign: 'center', fontFamily: F }}>Sin mensajes todavía</td></tr>
+                  ) : (data.contacts?.contacts ?? []).map((c: any) => (
+                    <>
+                      <tr key={c.id} onClick={() => setExpandedMsg(expandedMsg === c.id ? null : c.id)}
+                        style={{ cursor: 'pointer' }}>
+                        <td style={td}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#22c55e,#16a34a)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
+                              {c.name?.charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <p style={{ fontWeight: 700, color: '#0f172a', margin: 0, fontSize: 13, fontFamily: F }}>{c.name}</p>
+                              <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontFamily: F }}>{c.email}</p>
+                              <p style={{ fontSize: 10, color: '#cbd5e1', margin: 0, fontFamily: F }}>{new Date(c.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td style={td} className="adm-hide-mobile">
+                          <span style={{ fontFamily: F, color: '#64748b' }}>{c.company ?? '—'}</span>
+                        </td>
+                        <td style={td} className="adm-hide-mobile">
+                          <span style={{ fontFamily: F, color: '#64748b' }}>{c.orders ?? '—'}</span>
+                        </td>
+                        <td style={td}>
+                          <p style={{ margin: 0, maxWidth: 200, fontSize: 12, color: '#374151', lineHeight: 1.5, fontFamily: F, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: expandedMsg === c.id ? 'normal' : 'nowrap' }}>
+                            {c.message}
+                          </p>
+                        </td>
+                        <td style={td}>
+                          {c.wants_demo
+                            ? <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: '#dbeafe', color: '#1d4ed8', fontFamily: F }}>Sí</span>
+                            : <span style={{ fontSize: 11, color: '#94a3b8', fontFamily: F }}>No</span>
+                          }
+                        </td>
+                        <td style={td}>
+                          <select
+                            defaultValue={c.status}
+                            onClick={e => e.stopPropagation()}
+                            onChange={e => adminAction('/api/admin/contacts', { id: c.id, status: e.target.value })}
+                            style={{ ...inp, width: 'auto', padding: '6px 10px', cursor: 'pointer', fontSize: 12 }}>
+                            <option value="new">Nuevo</option>
+                            <option value="read">Leído</option>
+                            <option value="replied">Respondido</option>
+                          </select>
+                        </td>
+                      </tr>
+                      {expandedMsg === c.id && (
+                        <tr key={`${c.id}-expanded`}>
+                          <td colSpan={6} style={{ padding: '12px 16px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+                            <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                              <div style={{ flex: 1 }}>
+                                <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 6px', fontFamily: F }}>Mensaje completo</p>
+                                <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0, fontFamily: F }}>{c.message}</p>
+                              </div>
+                              <a href={`mailto:${c.email}`}
+                                style={{ ...btnOutline('#22c55e', '#bbf7d0'), textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                Responder email
+                              </a>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
