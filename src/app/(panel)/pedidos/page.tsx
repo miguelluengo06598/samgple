@@ -9,20 +9,33 @@ export default async function PedidosPage() {
   if (!user) redirect('/login')
 
   const admin = createAdminClient()
+
   const { data: accountUser } = await admin
-    .from('account_users').select('account_id').eq('user_id', user.id).single()
+    .from('account_users')
+    .select('account_id')
+    .eq('user_id', user.id)
+    .single()
+
+  if (!accountUser) redirect('/login')
 
   const { data: orders } = await admin
     .from('orders')
     .select(`
-      *,
+      id, order_number, status, call_status, call_attempts,
+      call_summary, total_price, phone, shipping_address,
+      created_at, last_call_at, next_call_at,
       customers(first_name, last_name, phone, email),
       order_items(name, quantity, price),
-      order_risk_analyses(score, recommendation)
+      order_risk_analyses(risk_score, risk_level, summary)
     `)
-    .eq('account_id', accountUser!.account_id)
+    .eq('account_id', accountUser.account_id)
     .order('created_at', { ascending: false })
     .limit(50)
 
-  return <PedidosClient initialOrders={orders ?? []} accountId={accountUser!.account_id} />
+  return (
+    <PedidosClient
+      initialOrders={orders ?? []}
+      accountId={accountUser.account_id}
+    />
+  )
 }

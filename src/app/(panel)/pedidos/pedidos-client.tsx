@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 const F = 'system-ui,-apple-system,sans-serif'
@@ -46,18 +46,18 @@ function avatarGradient(score: number) {
 }
 
 export default function PedidosClient({ initialOrders, accountId }: { initialOrders: any[]; accountId: string }) {
-  const [orders, setOrders]       = useState<any[]>(initialOrders)
-  const [filter, setFilter]       = useState('all')
-  const [search, setSearch]       = useState('')
-  const [expanded, setExpanded]   = useState<string | null>(null)
-  const [waMessages, setWaMessages] = useState<Record<string, string>>({})
-  const [loadingWa, setLoadingWa] = useState<Record<string, boolean>>({})
-  const [loadingCall, setLoadingCall] = useState<Record<string, boolean>>({})
+  const [orders, setOrders]             = useState<any[]>(initialOrders)
+  const [filter, setFilter]             = useState('all')
+  const [search, setSearch]             = useState('')
+  const [expanded, setExpanded]         = useState<string | null>(null)
+  const [waMessages, setWaMessages]     = useState<Record<string, string>>({})
+  const [loadingWa, setLoadingWa]       = useState<Record<string, boolean>>({})
+  const [loadingCall, setLoadingCall]   = useState<Record<string, boolean>>({})
   const [savingStatus, setSavingStatus] = useState<Record<string, boolean>>({})
-  const [newOrderIds, setNewOrderIds] = useState<Set<string>>(new Set())
+  const [newOrderIds, setNewOrderIds]   = useState<Set<string>>(new Set())
   const supabase = createClient()
 
-  // Realtime — pedidos entran solos
+  // Realtime — pedidos entran solos y se actualizan sin recargar
   useEffect(() => {
     const channel = supabase.channel(`pedidos-${accountId}`)
 
@@ -66,14 +66,28 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       schema: 'public',
       table: 'orders',
       filter: `account_id=eq.${accountId}`,
-    }, (payload) => {
-      const newOrder = payload.new as any
-      setOrders(prev => [newOrder, ...prev])
-      setNewOrderIds(prev => new Set([...prev, newOrder.id]))
-      // Quitar highlight después de 4 segundos
-      setTimeout(() => {
-        setNewOrderIds(prev => { const s = new Set(prev); s.delete(newOrder.id); return s })
-      }, 4000)
+    }, async (payload) => {
+      // Cargar pedido completo con relaciones
+      const { data } = await supabase
+        .from('orders')
+        .select(`
+          id, order_number, status, call_status, call_attempts,
+          call_summary, total_price, phone, shipping_address,
+          created_at, last_call_at, next_call_at,
+          customers(first_name, last_name, phone, email),
+          order_items(name, quantity, price),
+          order_risk_analyses(risk_score, risk_level, summary)
+        `)
+        .eq('id', payload.new.id)
+        .single()
+
+      if (data) {
+        setOrders(prev => [data, ...prev])
+        setNewOrderIds(prev => new Set([...prev, data.id]))
+        setTimeout(() => {
+          setNewOrderIds(prev => { const s = new Set(prev); s.delete(data.id); return s })
+        }, 4000)
+      }
     })
 
     channel.on('postgres_changes', {
@@ -81,20 +95,41 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       schema: 'public',
       table: 'orders',
       filter: `account_id=eq.${accountId}`,
-    }, (payload) => {
-      setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } : o))
+    }, async (payload) => {
+      // Recargar pedido completo con relaciones actualizadas
+      const { data } = await supabase
+        .from('orders')
+        .select(`
+          id, order_number, status, call_status, call_attempts,
+          call_summary, total_price, phone, shipping_address,
+          created_at, last_call_at, next_call_at,
+          customers(first_name, last_name, phone, email),
+          order_items(name, quantity, price),
+          order_risk_analyses(risk_score, risk_level, summary)
+        `)
+        .eq('id', payload.new.id)
+        .single()
+
+      if (data) setOrders(prev => prev.map(o => o.id === data.id ? data : o))
     })
 
     channel.on('postgres_changes', {
-      event: 'INSERT',
+      event: 'UPDATE',
       schema: 'public',
       table: 'call_logs',
     }, async (payload) => {
       const log = payload.new as any
-      // Recargar el pedido afectado para tener datos frescos
+      if (!log.order_id) return
       const { data } = await supabase
         .from('orders')
-        .select('*, customers(first_name,last_name,phone,email), order_items(name,quantity,price), order_risk_analyses(score,recommendation)')
+        .select(`
+          id, order_number, status, call_status, call_attempts,
+          call_summary, total_price, phone, shipping_address,
+          created_at, last_call_at, next_call_at,
+          customers(first_name, last_name, phone, email),
+          order_items(name, quantity, price),
+          order_risk_analyses(risk_score, risk_level, summary)
+        `)
         .eq('id', log.order_id)
         .single()
       if (data) setOrders(prev => prev.map(o => o.id === data.id ? data : o))
@@ -104,15 +139,14 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     return () => { supabase.removeChannel(channel) }
   }, [accountId])
 
-  // Filtrar pedidos
   const filtered = orders.filter(o => {
     const matchFilter =
-      filter === 'all' ? true :
-      filter === 'pending' ? (o.call_status === 'pending' || o.call_status === 'calling') :
+      filter === 'all'       ? true :
+      filter === 'pending'   ? (o.call_status === 'pending' || o.call_status === 'calling') :
       o.call_status === filter
     const matchSearch = search === '' ||
-      `${o.customers?.first_name} ${o.customers?.last_name}`.toLowerCase().includes(search.toLowerCase()) ||
-      String(o.order_number).includes(search)
+      `${o.customers?.first_name ?? ''} ${o.customers?.last_name ?? ''}`.toLowerCase().includes(search.toLowerCase()) ||
+      String(o.order_number ?? '').includes(search)
     return matchFilter && matchSearch
   })
 
@@ -158,6 +192,22 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     }
   }
 
+  async function handleViewTranscript(orderId: string) {
+    const { data } = await supabase
+      .from('call_logs')
+      .select('transcript, summary, duration_seconds')
+      .eq('order_id', orderId)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (data?.transcript) {
+      alert(`Duración: ${data.duration_seconds}s\n\n${data.transcript}`)
+    } else {
+      alert('Sin transcripción disponible todavía.')
+    }
+  }
+
   return (
     <>
       <style>{`
@@ -184,7 +234,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
               </div>
             </div>
             <div style={{ fontSize: 12, fontWeight: 700, padding: '6px 12px', borderRadius: 20, background: '#f0fafa', color: '#0f766e', border: '1px solid #cce8e6' }}>
-              {orders.filter(o => o.call_status === 'pending').length} pendientes
+              {orders.filter(o => o.call_status === 'pending' || !o.call_status).length} pendientes
             </div>
           </div>
 
@@ -201,7 +251,8 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
           {/* Búsqueda */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f8fafc', border: '1.5px solid #e8f4f3', borderRadius: 12 }}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre o #pedido..." style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#0f172a', outline: 'none', flex: 1, fontFamily: F }} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre o #pedido..."
+              style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#0f172a', outline: 'none', flex: 1, fontFamily: F }} />
             {search && (
               <button onClick={() => setSearch('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
@@ -210,7 +261,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
           </div>
         </div>
 
-        {/* Lista */}
+        {/* Lista pedidos */}
         <div style={{ padding: 'clamp(12px,3vw,16px)', paddingBottom: 100, display: 'flex', flexDirection: 'column', gap: 10 }}>
 
           {filtered.length === 0 && (
@@ -219,30 +270,31 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
               </div>
               <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>Sin pedidos</p>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Prueba otro filtro o búsqueda</p>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>No hay pedidos que coincidan con el filtro</p>
             </div>
           )}
 
           {filtered.map((order, i) => {
-            const isExpanded   = expanded === order.id
-            const isNew        = newOrderIds.has(order.id)
-            const callCfg      = CALL_STATUS_CONFIG[order.call_status] ?? CALL_STATUS_CONFIG.pending
-            const score        = order.order_risk_analyses?.[0]?.score ?? 50
-            const scoreCfg     = scoreColor(score)
-            const name         = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
-            const initial      = name.charAt(0).toUpperCase()
-            const waMsg        = waMessages[order.id] ?? order.call_summary
-            const isCalling    = loadingCall[order.id]
-            const isLoadingWa  = loadingWa[order.id]
-            const orderStatus  = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
+            const isExpanded  = expanded === order.id
+            const isNew       = newOrderIds.has(order.id)
+            const callCfg     = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
+            const score       = order.order_risk_analyses?.[0]?.risk_score ?? 50
+            const scoreCfg    = scoreColor(score)
+            const name        = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
+            const initial     = name.charAt(0).toUpperCase()
+            const phone       = order.customers?.phone ?? order.phone ?? '—'
+            const waMsg       = waMessages[order.id]
+            const isCalling   = loadingCall[order.id]
+            const isLoadingWa = loadingWa[order.id]
+            const summary     = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
+            const orderStatusOpt = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
 
             return (
               <div key={order.id} className={`order-card${isNew ? ' new-order' : ''}`}
-                style={{ background: '#fff', borderRadius: 20, border: `1px solid ${isNew ? '#2EC4B6' : '#e8f4f3'}`, overflow: 'hidden', animation: i < 3 ? `slideIn 0.2s ease ${i * 0.05}s both` : 'none' }}>
+                style={{ background: '#fff', borderRadius: 20, border: `1px solid ${isNew ? '#2EC4B6' : '#e8f4f3'}`, overflow: 'hidden', animation: i < 5 ? `slideIn 0.2s ease ${i * 0.04}s both` : 'none' }}>
 
-                {/* Cabecera tarjeta */}
-                <div onClick={() => setExpanded(isExpanded ? null : order.id)}
-                  style={{ padding: 'clamp(14px,3vw,16px)', cursor: 'pointer' }}>
+                {/* Cabecera — click para expandir */}
+                <div onClick={() => setExpanded(isExpanded ? null : order.id)} style={{ padding: 'clamp(14px,3vw,16px)', cursor: 'pointer' }}>
 
                   {isNew && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8, fontSize: 10, fontWeight: 700, color: '#0f766e' }}>
@@ -251,7 +303,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                     </div>
                   )}
 
-                  {/* Top: avatar + nombre + score */}
+                  {/* Avatar + nombre + score */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{ width: 40, height: 40, borderRadius: 13, background: avatarGradient(score), display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
@@ -261,20 +313,22 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                       </div>
                       <div style={{ minWidth: 0 }}>
                         <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
-                        <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{order.customers?.phone ?? '—'}</p>
+                        <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>{phone}</p>
                       </div>
                     </div>
-                    <div style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, background: scoreCfg.bg, color: scoreCfg.color, border: `1px solid ${scoreCfg.border}`, flexShrink: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, padding: '4px 10px', borderRadius: 20, background: scoreCfg.bg, color: scoreCfg.color, border: `1px solid ${scoreCfg.border}`, flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {score} {scoreCfg.label}
                     </div>
                   </div>
 
-                  {/* Mid: precio + intentos */}
+                  {/* Precio + intentos */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <span style={{ fontSize: 'clamp(18px,4vw,22px)', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>{order.total_price}€</span>
+                    <span style={{ fontSize: 'clamp(18px,4vw,22px)', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.5px' }}>
+                      {Number(order.total_price ?? 0).toFixed(2)}€
+                    </span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/></svg>
-                      {order.call_attempts > 0 ? `${order.call_attempts} intento${order.call_attempts > 1 ? 's' : ''}` : 'Sin llamadas aún'}
+                      {(order.call_attempts ?? 0) > 0 ? `${order.call_attempts} intento${order.call_attempts > 1 ? 's' : ''}` : 'Sin llamadas aún'}
                     </div>
                   </div>
 
@@ -284,7 +338,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                       {callCfg.emoji} {callCfg.label}
                     </span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: '#f1f5f9', color: '#475569' }}>
-                      {orderStatus.label}
+                      {orderStatusOpt.label}
                     </span>
                     <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 9px', borderRadius: 20, background: '#f1f5f9', color: '#94a3b8' }}>
                       #{order.order_number}
@@ -292,23 +346,21 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                   </div>
                 </div>
 
-                {/* Expandido */}
+                {/* Sección expandida */}
                 {isExpanded && (
-                  <div style={{ borderTop: '1px solid #f0fafa', background: '#fafcff', display: 'flex', flexDirection: 'column', gap: 12, padding: 'clamp(14px,3vw,16px)' }}>
+                  <div style={{ borderTop: '1px solid #f0fafa', background: '#fafcff', padding: 'clamp(14px,3vw,16px)', display: 'flex', flexDirection: 'column', gap: 12 }}>
 
                     {/* Resumen llamada */}
-                    {(order.call_summary || order.order_risk_analyses?.[0]?.recommendation) && (
-                      <div>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>Resumen de la llamada IA</p>
-                        <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, margin: 0 }}>
-                          {order.call_summary ?? order.order_risk_analyses?.[0]?.recommendation ?? 'Sin resumen disponible aún.'}
-                        </p>
-                      </div>
-                    )}
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 6px' }}>Resumen de la llamada IA</p>
+                      <p style={{ fontSize: 13, color: summary ? '#374151' : '#94a3b8', lineHeight: 1.6, margin: 0, fontStyle: summary ? 'normal' : 'italic' }}>
+                        {summary ?? 'Sin resumen disponible. La llamada aún no se ha realizado.'}
+                      </p>
+                    </div>
 
                     {/* WhatsApp */}
                     <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '12px 14px', border: '1px solid #bbf7d0' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: waMsg ? 8 : 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#15803d' }}>
                           <svg width="13" height="13" viewBox="0 0 24 24" fill="#15803d"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm.001 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
                           Mensaje WhatsApp IA
@@ -330,7 +382,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                           </button>
                         </>
                       ) : (
-                        <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>Genera un mensaje personalizado para este cliente</p>
+                        !isLoadingWa && <p style={{ fontSize: 12, color: '#64748b', margin: '6px 0 0', fontStyle: 'italic' }}>Genera un mensaje personalizado para este cliente</p>
                       )}
                     </div>
 
@@ -341,28 +393,21 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                         value={order.status ?? 'por_confirmar'}
                         onChange={e => handleStatusChange(order.id, e.target.value)}
                         disabled={savingStatus[order.id]}
-                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1.5px solid #e8f4f3', background: savingStatus[order.id] ? '#f8fafc' : '#fff', fontSize: 13, fontWeight: 700, color: '#0f172a', outline: 'none', fontFamily: F, cursor: 'pointer', opacity: savingStatus[order.id] ? 0.6 : 1 }}>
+                        style={{ width: '100%', padding: '11px 14px', borderRadius: 12, border: '1.5px solid #e8f4f3', background: '#fff', fontSize: 13, fontWeight: 700, color: '#0f172a', outline: 'none', fontFamily: F, cursor: 'pointer', opacity: savingStatus[order.id] ? 0.6 : 1 }}>
                         {ORDER_STATUS_OPTIONS.map(s => (
                           <option key={s.value} value={s.value}>{s.label}</option>
                         ))}
                       </select>
                     </div>
 
-                    {/* Acciones */}
+                    {/* Botones acción */}
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <button
-                        onClick={async () => {
-                          const { data } = await supabase.from('call_logs').select('transcript').eq('order_id', order.id).order('created_at', { ascending: false }).limit(1).single()
-                          if (data?.transcript) alert(data.transcript)
-                          else alert('Sin transcripción disponible')
-                        }}
+                      <button onClick={() => handleViewTranscript(order.id)}
                         style={{ padding: '11px', borderRadius: 12, border: '2px solid #e8f4f3', background: '#fff', color: '#64748b', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                         Transcripción
                       </button>
-                      <button
-                        onClick={() => handleRetry(order.id)}
-                        disabled={isCalling}
+                      <button onClick={() => handleRetry(order.id)} disabled={isCalling}
                         style={{ padding: '11px', borderRadius: 12, border: '2px solid #bae6fd', background: '#f0f9ff', color: '#0284c7', fontSize: 12, fontWeight: 700, cursor: isCalling ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: F, opacity: isCalling ? 0.6 : 1 }}>
                         {isCalling ? (
                           <div style={{ width: 12, height: 12, border: '2px solid rgba(2,132,199,0.3)', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -377,8 +422,8 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                 )}
 
                 {/* Footer */}
-                <div style={{ background: '#f8fafc', padding: '10px 16px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
-                  onClick={() => setExpanded(isExpanded ? null : order.id)} style={{ background: '#f8fafc', padding: '10px 16px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
+                <div onClick={() => setExpanded(isExpanded ? null : order.id)}
+                  style={{ background: '#f8fafc', padding: '10px 16px', borderTop: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }}>
                   <span style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 5 }}>
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     {new Date(order.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
@@ -395,6 +440,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
               </div>
             )
           })}
+
         </div>
       </div>
     </>
