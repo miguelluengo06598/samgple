@@ -19,15 +19,20 @@ export async function POST(request: NextRequest) {
   const { order_id } = await request.json()
   if (!order_id) return NextResponse.json({ error: 'order_id requerido' }, { status: 400 })
 
-  // Cargar configuración VAPI del cliente
+  // Verificar que VAPI está configurado en el servidor
+  if (!process.env.VAPI_API_KEY || !process.env.VAPI_ASSISTANT_ID) {
+    return NextResponse.json({ error: 'VAPI no configurado en el servidor' }, { status: 500 })
+  }
+
+  // Cargar configuración del cliente — solo necesita phone_number_id y datos del asistente
   const { data: vapiConfig } = await admin
     .from('vapi_configs')
     .select('*')
     .eq('account_id', accountUser.account_id)
     .single()
 
-  if (!vapiConfig?.vapi_api_key) {
-    return NextResponse.json({ error: 'VAPI no configurado. Ve a Configuración → Asistente IA' }, { status: 400 })
+  if (!vapiConfig?.vapi_phone_number_id) {
+    return NextResponse.json({ error: 'Número de teléfono no configurado. Ve a Configuración → Asistente IA' }, { status: 400 })
   }
 
   if (!vapiConfig.active) {
@@ -68,55 +73,61 @@ export async function POST(request: NextRequest) {
     phoneE164 = `+${cleanPhone}`
   }
 
-  // Personalizar mensaje de bienvenida con variables del pedido
-  const customerName = order.customers?.first_name ?? 'Cliente'
-  const productName = order.order_items?.[0]?.name ?? 'tu pedido'
-  const orderTotal = `${order.total_price}€`
-  const orderNumber = order.order_number ?? order.id.slice(0, 8)
-  const companyName = vapiConfig.company_name ?? 'nuestra tienda'
+  // Variables del pedido
+  const customerName  = order.customers?.first_name ?? 'Cliente'
+  const productName   = order.order_items?.[0]?.name ?? 'tu pedido'
+  const orderTotal    = `${order.total_price}€`
+  const orderNumber   = String(order.order_number ?? order.id.slice(0, 8))
+  const companyName   = vapiConfig.company_name ?? 'nuestra tienda'
+  const assistantName = vapiConfig.assistant_name ?? 'Sara'
+  const shippingAddress = order.shipping_address?.address1
+    ? `${order.shipping_address.address1}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
+    : 'tu dirección'
 
+  // Mensaje de bienvenida
   const defaultWelcome = `Hola, ¿hablo con ${customerName}?`
-  const welcomeMessage = (vapiConfig.welcome_message ?? defaultWelcome)
-    .replace(/\{customer_name\}/g, customerName)
-    .replace(/\{product_name\}/g, productName)
-    .replace(/\{order_total\}/g, orderTotal)
-    .replace(/\{order_number\}/g, orderNumber)
-    .replace(/\{company_name\}/g, companyName)
+  const welcomeMessage = (vapiConfig.welcome_message?.trim() ? vapiConfig.welcome_message : defaultWelcome)
+    .replace(/\{customer_name\}/g,    customerName)
+    .replace(/\{\{customerName\}\}/g, customerName)
+    .replace(/\{product_name\}/g,     productName)
+    .replace(/\{order_total\}/g,      orderTotal)
+    .replace(/\{order_number\}/g,     orderNumber)
+    .replace(/\{company_name\}/g,     companyName)
+    .replace(/\{assistant_name\}/g,   assistantName)
 
-  // Iniciar llamada con VAPI
+  // Iniciar llamada con VAPI — usando TU API key y TU asistente
   const vapiRes = await fetch('https://api.vapi.ai/call', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${vapiConfig.vapi_api_key}`,
+      'Authorization': `Bearer ${process.env.VAPI_API_KEY}`,
     },
     body: JSON.stringify({
-      assistantId: vapiConfig.vapi_assistant_id,
+      assistantId:   process.env.VAPI_ASSISTANT_ID,
       phoneNumberId: vapiConfig.vapi_phone_number_id,
       customer: {
         number: phoneE164,
         name: `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim(),
       },
       assistantOverrides: {
+        firstMessage: welcomeMessage,
         variableValues: {
-        customerName:   customerName,
-        customer_name:  customerName,
-        storeName:      companyName,
-        company_name:   companyName,
-        orderItems:     productName,
-        product_name:   productName,
-        orderAmount:    String(order.total_price),
-        order_total:    orderTotal,
-        orderAddress:   order.shipping_address?.address1
-          ? `${order.shipping_address.address1}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
-          : 'tu dirección',
-        orderNumber:    String(orderNumber),
-        order_number:   String(orderNumber),
-        assistant_name: vapiConfig.assistant_name ?? 'Sara',
+          customerName:   customerName,
+          customer_name:  customerName,
+          storeName:      companyName,
+          company_name:   companyName,
+          orderItems:     productName,
+          product_name:   productName,
+          orderAmount:    String(order.total_price),
+          order_total:    orderTotal,
+          orderAddress:   shippingAddress,
+          orderNumber:    orderNumber,
+          order_number:   orderNumber,
+          assistant_name: assistantName,
         },
       },
       metadata: {
-        order_id: order.id,
+        order_id:   order.id,
         account_id: accountUser.account_id,
       },
     }),
@@ -126,7 +137,6 @@ export async function POST(request: NextRequest) {
     const err = await vapiRes.text()
     console.error('VAPI error:', err)
 
-    // Cobrar llamada fallida
     await deductBalance(
       accountUser.account_id,
       CALL_COST_FAILED,
@@ -135,11 +145,10 @@ export async function POST(request: NextRequest) {
       { order_id }
     )
 
-    // Actualizar intento fallido
     await admin.from('orders').update({
       call_attempts: (order.call_attempts ?? 0) + 1,
-      last_call_at: new Date().toISOString(),
-      call_status: 'no_answer',
+      last_call_at:  new Date().toISOString(),
+      call_status:   'no_answer',
     }).eq('id', order.id)
 
     return NextResponse.json({ error: 'Error iniciando llamada con VAPI' }, { status: 500 })
@@ -149,19 +158,19 @@ export async function POST(request: NextRequest) {
 
   // Registrar en call_logs
   await admin.from('call_logs').insert({
-    account_id: accountUser.account_id,
-    order_id: order.id,
+    account_id:   accountUser.account_id,
+    order_id:     order.id,
     vapi_call_id: vapiCall.id,
-    status: 'initiated',
-    started_at: new Date().toISOString(),
+    status:       'initiated',
+    started_at:   new Date().toISOString(),
   })
 
   // Actualizar estado del pedido
   await admin.from('orders').update({
-    call_status: 'calling',
+    call_status:   'calling',
     call_attempts: (order.call_attempts ?? 0) + 1,
-    last_call_at: new Date().toISOString(),
-    next_call_at: null,
+    last_call_at:  new Date().toISOString(),
+    next_call_at:  null,
   }).eq('id', order.id)
 
   return NextResponse.json({ ok: true, call_id: vapiCall.id })
