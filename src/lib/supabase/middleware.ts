@@ -28,19 +28,13 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rutas protegidas
+  // Solo proteger rutas del panel — sin tocar nada más
   const protectedPaths = ['/finanzas', '/pedidos', '/tienda', '/herramientas', '/configuracion']
   const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    return NextResponse.redirect(url)
-  }
-
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/registro')) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/pedidos'
     return NextResponse.redirect(url)
   }
 
