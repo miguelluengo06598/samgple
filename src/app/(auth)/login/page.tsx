@@ -96,9 +96,10 @@ export default function LoginPage() {
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               
                 href="/recuperar-password"
-                style={{ fontSize: 12, color: '#2EC4B6', fontWeight: 600, textDecoration: 'none' }}>
+                style={{ fontSize: 12, color: '#2EC4B6', fontWeight: 600, textDecoration: 'none' }}
+            >
                 ¿Olvidaste tu contraseña?
-              </a>
+            </a>
             </div>
 
             {error && (
