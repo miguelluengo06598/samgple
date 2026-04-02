@@ -1,70 +1,66 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient } from '@supabase/ssr'
+import { type NextRequest, NextResponse } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
 
-const PUBLIC_ROUTES = ['/', '/precios', '/metodologia', '/contacto']
-const PUBLIC_API    = ['/api/contact', '/api/shopify/auth', '/api/shopify/callback', '/api/webhooks', '/api/vapi/webhook']
-const AUTH_ROUTES   = ['/login', '/registro']
+// Rate limiting simple en memoria
+const rateLimit = new Map<string, { count: number; resetAt: number }>()
+
+function checkRateLimit(ip: string, limit: number, windowMs: number): boolean {
+  const now = Date.now()
+  const entry = rateLimit.get(ip)
+
+  if (!entry || now > entry.resetAt) {
+    rateLimit.set(ip, { count: 1, resetAt: now + windowMs })
+    return true
+  }
+
+  if (entry.count >= limit) return false
+
+  entry.count++
+  return true
+}
 
 export async function proxy(request: NextRequest) {
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '127.0.0.1'
   const { pathname } = request.nextUrl
 
-  const res = NextResponse.next({ request: { headers: request.headers } })
+  // ── Rate limiting por ruta ──
 
-  if (PUBLIC_API.some(r => pathname.startsWith(r))) return res
-  if (pathname.startsWith('/_next') || pathname.includes('.')) return res
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => request.cookies.getAll(),
-        setAll: (cookiesToSet) => {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            res.cookies.set(name, value, options)
-          )
-        },
-      },
+  // API de contacto — 5 por hora por IP
+  if (pathname.startsWith('/api/contact')) {
+    if (!checkRateLimit(`contact:${ip}`, 5, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes. Inténtalo más tarde.' }, { status: 429 })
     }
-  )
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (pathname.startsWith('/admin') && !pathname.startsWith('/admin/login')) {
-    const adminSecret = request.cookies.get('admin_secret')?.value
-    if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
-      return NextResponse.redirect(new URL('/admin/login', request.url))
-    }
-    return res
   }
 
-  if (pathname.startsWith('/api/admin')) {
-    const adminSecret =
-      request.headers.get('x-admin-secret') ??
-      request.cookies.get('admin_secret')?.value
-    if (!adminSecret || adminSecret !== process.env.ADMIN_SECRET) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  // API de login/registro — 10 intentos por 15 min
+  if (pathname.startsWith('/api/auth') || pathname.includes('signIn') || pathname.includes('signUp')) {
+    if (!checkRateLimit(`auth:${ip}`, 10, 15 * 60 * 1000)) {
+      return NextResponse.json({ error: 'Demasiados intentos. Espera 15 minutos.' }, { status: 429 })
     }
-    return res
   }
 
+  // API de VAPI call — 30 por minuto por IP
+  if (pathname.startsWith('/api/vapi/call')) {
+    if (!checkRateLimit(`vapi:${ip}`, 30, 60 * 1000)) {
+      return NextResponse.json({ error: 'Límite de llamadas alcanzado.' }, { status: 429 })
+    }
+  }
+
+  // API general — 100 por minuto por IP
   if (pathname.startsWith('/api/')) {
-    if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-    return res
+    if (!checkRateLimit(`api:${ip}`, 100, 60 * 1000)) {
+      return NextResponse.json({ error: 'Demasiadas solicitudes.' }, { status: 429 })
+    }
   }
 
-  if (PUBLIC_ROUTES.includes(pathname)) return res
+  // ── Headers de seguridad ──
+  const res = await updateSession(request)
 
-  if (AUTH_ROUTES.some(r => pathname.startsWith(r))) {
-    if (user) return NextResponse.redirect(new URL('/pedidos', request.url))
-    return res
-  }
-
-  if (!user) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
+  res.headers.set('X-Content-Type-Options', 'nosniff')
+  res.headers.set('X-Frame-Options', 'DENY')
+  res.headers.set('X-XSS-Protection', '1; mode=block')
+  res.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
+  res.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
 
   return res
 }
