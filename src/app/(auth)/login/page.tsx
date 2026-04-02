@@ -15,14 +15,20 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError('')
+
     const supabase = createClient()
     const { error } = await supabase.auth.signInWithPassword({ email, password })
+
     if (error) {
       setError('Email o contraseña incorrectos')
       setLoading(false)
       return
     }
-    router.push('/pedidos')
+
+    // Redirigir al destino original si existe, si no al panel
+    const params = new URLSearchParams(window.location.search)
+    const redirect = params.get('redirect') ?? '/pedidos'
+    router.push(redirect)
     router.refresh()
   }
 
@@ -87,12 +93,21 @@ export default function LoginPage() {
               </div>
             </div>
 
-            <p style={{ fontSize: 12, color: '#2EC4B6', fontWeight: 600, textAlign: 'right', margin: 0, cursor: 'pointer' }}>
-              ¿Olvidaste tu contraseña?
-            </p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              
+                href="/recuperar-password"
+                style={{ fontSize: 12, color: '#2EC4B6', fontWeight: 600, textDecoration: 'none' }}>
+                ¿Olvidaste tu contraseña?
+              </a>
+            </div>
 
             {error && (
-              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px' }}>
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="10"/>
+                  <line x1="12" y1="8" x2="12" y2="12"/>
+                  <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
                 <p style={{ fontSize: 13, color: '#dc2626', margin: 0, fontWeight: 500 }}>{error}</p>
               </div>
             )}
@@ -100,21 +115,33 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              style={{ background: loading ? '#94a3b8' : 'linear-gradient(135deg,#2EC4B6,#1D9E75)', border: 'none', borderRadius: 14, padding: 'clamp(12px,2.5vw,15px)', fontSize: 'clamp(13px,3vw,15px)', fontWeight: 700, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', width: '100%' }}
-            >
-              {loading ? 'Entrando...' : 'Iniciar sesión'}
+              style={{ background: loading ? '#94a3b8' : 'linear-gradient(135deg,#2EC4B6,#1D9E75)', border: 'none', borderRadius: 14, padding: 'clamp(12px,2.5vw,15px)', fontSize: 'clamp(13px,3vw,15px)', fontWeight: 700, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {loading ? (
+                <>
+                  <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                  Entrando...
+                </>
+              ) : 'Iniciar sesión'}
             </button>
 
             <p style={{ fontSize: 13, color: '#64748b', textAlign: 'center', margin: 0 }}>
               ¿No tienes cuenta?{' '}
               <a href="/registro" style={{ color: '#2EC4B6', fontWeight: 700, textDecoration: 'none' }}>
-                Regístrate
+                Regístrate gratis
               </a>
             </p>
           </form>
         </div>
 
+        <p style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center', marginTop: 16 }}>
+          Al iniciar sesión aceptas nuestros{' '}
+          <a href="#" style={{ color: '#64748b', textDecoration: 'none' }}>Términos de servicio</a>
+          {' '}y{' '}
+          <a href="#" style={{ color: '#64748b', textDecoration: 'none' }}>Política de privacidad</a>
+        </p>
+
       </div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 }

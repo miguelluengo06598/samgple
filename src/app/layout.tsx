@@ -1,16 +1,23 @@
-import type { Metadata } from 'next'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import NavBottom from '@/components/ui/nav-bottom'
 
-export const metadata: Metadata = {
-  title: 'SAMGPLE — Confirmación COD con IA',
-  description: 'Reduce devoluciones y confirma pedidos COD automáticamente con IA y llamadas.',
-}
+export default async function PanelLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+  if (!user) redirect('/login')
+
   return (
-    <html lang="es">
-      <body style={{ margin: 0, padding: 0 }}>
+    <div className="min-h-screen bg-gray-50">
+      <main className="pb-28">
         {children}
-      </body>
-    </html>
+      </main>
+      <NavBottom />
+    </div>
   )
 }

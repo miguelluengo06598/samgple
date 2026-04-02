@@ -68,21 +68,35 @@ export async function POST(request: NextRequest) {
     phoneE164 = `+${cleanPhone}`
   }
 
-  // Personalizar mensaje de bienvenida con variables del pedido
-  const customerName = order.customers?.first_name ?? 'Cliente'
-  const productName = order.order_items?.[0]?.name ?? 'tu pedido'
-  const orderTotal = `${order.total_price}€`
-  const orderNumber = order.order_number ?? order.id.slice(0, 8)
-  const companyName = vapiConfig.company_name ?? 'nuestra tienda'
+  // Variables del pedido
+  const customerName  = order.customers?.first_name ?? 'Cliente'
+  const productName   = order.order_items?.[0]?.name ?? 'tu pedido'
+  const orderTotal    = `${order.total_price}€`
+  const orderNumber   = String(order.order_number ?? order.id.slice(0, 8))
+  const companyName   = vapiConfig.company_name ?? 'nuestra tienda'
+  const assistantName = vapiConfig.assistant_name ?? 'Sara'
 
-  const defaultWelcome = `Hola ${customerName}, te llamo de ${companyName} para confirmar tu pedido número ${orderNumber} por importe de ${orderTotal}. ¿Puedes confirmarlo?`
+  // Dirección de entrega
+  const shippingAddress = order.shipping_address?.address1
+    ? `${order.shipping_address.address1}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
+    : 'tu dirección'
 
-  const welcomeMessage = (vapiConfig.welcome_message ?? defaultWelcome)
-    .replace(/\{customer_name\}/g, customerName)
-    .replace(/\{product_name\}/g, productName)
-    .replace(/\{order_total\}/g, orderTotal)
-    .replace(/\{order_number\}/g, orderNumber)
-    .replace(/\{company_name\}/g, companyName)
+  // Mensaje de bienvenida — usa el del cliente si existe, si no el default
+  const defaultWelcome = `Hola, ¿qué tal? Mira, te llamo de ${companyName} por tu pedido de ${productName} que va para ${shippingAddress}. Te sale a ${order.total_price} euros y se paga al recibirlo, ¿lo confirmamos?`
+
+  const welcomeMessage = (vapiConfig.welcome_message?.trim() ? vapiConfig.welcome_message : defaultWelcome)
+    .replace(/\{customer_name\}/g,    customerName)
+    .replace(/\{\{customer_name\}\}/g, customerName)
+    .replace(/\{product_name\}/g,     productName)
+    .replace(/\{\{orderItems\}\}/g,   productName)
+    .replace(/\{order_total\}/g,      orderTotal)
+    .replace(/\{\{orderAmount\}\}/g,  orderTotal)
+    .replace(/\{order_number\}/g,     orderNumber)
+    .replace(/\{\{orderNumber\}\}/g,  orderNumber)
+    .replace(/\{\{orderAddress\}\}/g, shippingAddress)
+    .replace(/\{company_name\}/g,     companyName)
+    .replace(/\{\{storeName\}\}/g,    companyName)
+    .replace(/\{assistant_name\}/g,   assistantName)
 
   // Iniciar llamada con VAPI
   const vapiRes = await fetch('https://api.vapi.ai/call', {
@@ -101,16 +115,22 @@ export async function POST(request: NextRequest) {
       assistantOverrides: {
         firstMessage: welcomeMessage,
         variableValues: {
-          customer_name: customerName,
-          order_number: orderNumber,
-          order_total: orderTotal,
-          product_name: productName,
-          company_name: companyName,
-          assistant_name: vapiConfig.assistant_name ?? 'Sara',
+          // Variables que usa el system prompt y first message de VAPI
+          storeName:      companyName,
+          orderItems:     productName,
+          orderAddress:   shippingAddress,
+          orderAmount:    String(order.total_price),
+          orderNumber:    orderNumber,
+          // Variables adicionales
+          customer_name:  customerName,
+          assistant_name: assistantName,
+          company_name:   companyName,
+          product_name:   productName,
+          order_total:    orderTotal,
         },
       },
       metadata: {
-        order_id: order.id,
+        order_id:   order.id,
         account_id: accountUser.account_id,
       },
     }),
@@ -132,8 +152,8 @@ export async function POST(request: NextRequest) {
     // Actualizar intento fallido
     await admin.from('orders').update({
       call_attempts: (order.call_attempts ?? 0) + 1,
-      last_call_at: new Date().toISOString(),
-      call_status: 'no_answer',
+      last_call_at:  new Date().toISOString(),
+      call_status:   'no_answer',
     }).eq('id', order.id)
 
     return NextResponse.json({ error: 'Error iniciando llamada con VAPI' }, { status: 500 })
@@ -143,19 +163,19 @@ export async function POST(request: NextRequest) {
 
   // Registrar en call_logs
   await admin.from('call_logs').insert({
-    account_id: accountUser.account_id,
-    order_id: order.id,
+    account_id:   accountUser.account_id,
+    order_id:     order.id,
     vapi_call_id: vapiCall.id,
-    status: 'initiated',
-    started_at: new Date().toISOString(),
+    status:       'initiated',
+    started_at:   new Date().toISOString(),
   })
 
   // Actualizar estado del pedido
   await admin.from('orders').update({
-    call_status: 'calling',
+    call_status:   'calling',
     call_attempts: (order.call_attempts ?? 0) + 1,
-    last_call_at: new Date().toISOString(),
-    next_call_at: null,
+    last_call_at:  new Date().toISOString(),
+    next_call_at:  null,
   }).eq('id', order.id)
 
   return NextResponse.json({ ok: true, call_id: vapiCall.id })
