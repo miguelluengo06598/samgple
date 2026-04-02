@@ -17,12 +17,6 @@ export async function GET() {
     .eq('account_id', accountUser!.account_id)
     .single()
 
-  // Ocultar keys completas por seguridad — mostrar solo últimos 4 chars
-  if (data?.vapi_api_key) {
-    data.vapi_api_key_masked = `••••••••${data.vapi_api_key.slice(-4)}`
-    delete data.vapi_api_key
-  }
-
   return NextResponse.json({ config: data ?? null })
 }
 
@@ -37,19 +31,21 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json()
   const {
-    vapi_api_key, vapi_assistant_id, vapi_phone_number_id,
-    assistant_name, assistant_gender, company_name, welcome_message
+    vapi_phone_number_id,
+    assistant_name,
+    company_name,
+    welcome_message,
   } = body
 
   const updates: any = {
-    account_id: accountUser!.account_id,
-    assistant_name, assistant_gender, company_name, welcome_message,
-    updated_at: new Date().toISOString(),
+    account_id:    accountUser!.account_id,
+    assistant_name,
+    company_name,
+    welcome_message,
+    updated_at:    new Date().toISOString(),
   }
 
-  // Solo actualizar keys si se envían (no vacías)
-  if (vapi_api_key && !vapi_api_key.includes('••')) updates.vapi_api_key = vapi_api_key
-  if (vapi_assistant_id) updates.vapi_assistant_id = vapi_assistant_id
+  // Solo actualizar phone_number_id si se envía
   if (vapi_phone_number_id) updates.vapi_phone_number_id = vapi_phone_number_id
 
   const { data, error } = await admin
@@ -73,19 +69,23 @@ export async function PATCH(request: NextRequest) {
 
   const { active } = await request.json()
 
-  // Verificar que tiene config completa antes de activar
+  // Verificar que tiene phone_number_id antes de activar
   if (active) {
     const { data: config } = await admin
       .from('vapi_configs')
-      .select('vapi_api_key, vapi_assistant_id, vapi_phone_number_id')
+      .select('vapi_phone_number_id')
       .eq('account_id', accountUser!.account_id)
       .single()
 
-    if (!config?.vapi_api_key || !config?.vapi_assistant_id || !config?.vapi_phone_number_id) {
-      return NextResponse.json({ error: 'Completa la configuración antes de activar' }, { status: 400 })
+    if (!config?.vapi_phone_number_id) {
+      return NextResponse.json({ error: 'Añade tu número de teléfono de Twilio antes de activar' }, { status: 400 })
     }
   }
 
-  await admin.from('vapi_configs').update({ active, updated_at: new Date().toISOString() }).eq('account_id', accountUser!.account_id)
+  await admin
+    .from('vapi_configs')
+    .update({ active, updated_at: new Date().toISOString() })
+    .eq('account_id', accountUser!.account_id)
+
   return NextResponse.json({ ok: true })
 }
