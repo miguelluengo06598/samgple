@@ -75,8 +75,7 @@ export async function POST(request: NextRequest) {
   const orderNumber = order.order_number ?? order.id.slice(0, 8)
   const companyName = vapiConfig.company_name ?? 'nuestra tienda'
 
-  const defaultWelcome = `Hola ${customerName}, te llamo de ${companyName} para confirmar tu pedido número ${orderNumber} por importe de ${orderTotal}. ¿Puedes confirmarlo?`
-
+  const defaultWelcome = `Hola, ¿hablo con ${customerName}?`
   const welcomeMessage = (vapiConfig.welcome_message ?? defaultWelcome)
     .replace(/\{customer_name\}/g, customerName)
     .replace(/\{product_name\}/g, productName)
@@ -99,14 +98,21 @@ export async function POST(request: NextRequest) {
         name: `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim(),
       },
       assistantOverrides: {
-        firstMessage: welcomeMessage,
         variableValues: {
-          customer_name: customerName,
-          order_number: orderNumber,
-          order_total: orderTotal,
-          product_name: productName,
-          company_name: companyName,
-          assistant_name: vapiConfig.assistant_name ?? 'Sara',
+        customerName:   customerName,
+        customer_name:  customerName,
+        storeName:      companyName,
+        company_name:   companyName,
+        orderItems:     productName,
+        product_name:   productName,
+        orderAmount:    String(order.total_price),
+        order_total:    orderTotal,
+        orderAddress:   order.shipping_address?.address1
+          ? `${order.shipping_address.address1}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
+          : 'tu dirección',
+        orderNumber:    String(orderNumber),
+        order_number:   String(orderNumber),
+        assistant_name: vapiConfig.assistant_name ?? 'Sara',
         },
       },
       metadata: {
