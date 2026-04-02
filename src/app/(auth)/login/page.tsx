@@ -25,7 +25,6 @@ export default function LoginPage() {
       return
     }
 
-    // Redirigir al destino original si existe, si no al panel
     const params = new URLSearchParams(window.location.search)
     const redirect = params.get('redirect') ?? '/pedidos'
     router.push(redirect)
@@ -53,11 +52,13 @@ export default function LoginPage() {
           <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 22px' }}>Inicia sesión en tu cuenta</p>
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Email */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }}>
                 Email
               </label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 14, transition: 'border-color 0.15s' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: 14 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
                   <polyline points="22,6 12,13 2,6"/>
@@ -73,6 +74,7 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Contraseña */}
             <div>
               <label style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 5, display: 'block' }}>
                 Contraseña
@@ -93,15 +95,17 @@ export default function LoginPage() {
               </div>
             </div>
 
+            {/* Olvidaste contraseña */}
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               
                 href="/recuperar-password"
                 style={{ fontSize: 12, color: '#2EC4B6', fontWeight: 600, textDecoration: 'none' }}
-            >
+              >
                 ¿Olvidaste tu contraseña?
-            </a>
+              </a>
             </div>
 
+            {/* Error */}
             {error && (
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
@@ -113,10 +117,12 @@ export default function LoginPage() {
               </div>
             )}
 
+            {/* Botón */}
             <button
               type="submit"
               disabled={loading}
-              style={{ background: loading ? '#94a3b8' : 'linear-gradient(135deg,#2EC4B6,#1D9E75)', border: 'none', borderRadius: 14, padding: 'clamp(12px,2.5vw,15px)', fontSize: 'clamp(13px,3vw,15px)', fontWeight: 700, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              style={{ background: loading ? '#94a3b8' : 'linear-gradient(135deg,#2EC4B6,#1D9E75)', border: 'none', borderRadius: 14, padding: 'clamp(12px,2.5vw,15px)', fontSize: 'clamp(13px,3vw,15px)', fontWeight: 700, color: '#fff', cursor: loading ? 'not-allowed' : 'pointer', transition: 'opacity 0.15s', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+            >
               {loading ? (
                 <>
                   <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -131,6 +137,7 @@ export default function LoginPage() {
                 Regístrate gratis
               </a>
             </p>
+
           </form>
         </div>
 
