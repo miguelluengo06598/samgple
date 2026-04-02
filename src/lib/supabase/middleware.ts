@@ -28,19 +28,29 @@ export async function updateSession(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // Rutas protegidas
-  const protectedPaths = ['/finanzas', '/pedidos', '/tienda', '/herramientas', '/configuracion']
-  const isProtected = protectedPaths.some(p => request.nextUrl.pathname.startsWith(p))
+  const pathname = request.nextUrl.pathname
 
+  // Rutas del panel que requieren sesión
+  const protectedPaths = ['/finanzas', '/pedidos', '/tienda', '/herramientas', '/configuracion']
+  const isProtected = protectedPaths.some(p => pathname.startsWith(p))
+
+  // Sin sesión intentando acceder al panel → redirigir a login
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
+    url.searchParams.set('redirect', pathname)
     return NextResponse.redirect(url)
   }
 
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/registro')) {
+  // Con sesión en login o registro → redirigir al panel
+  // SOLO si no viene de un redirect para evitar bucles
+  if (user && (pathname === '/login' || pathname === '/registro')) {
+    const redirectTo = request.nextUrl.searchParams.get('redirect') ?? '/pedidos'
+    // Verificar que el redirect es seguro (no externo)
+    const safeRedirect = redirectTo.startsWith('/') ? redirectTo : '/pedidos'
     const url = request.nextUrl.clone()
-    url.pathname = '/pedidos'
+    url.pathname = safeRedirect
+    url.search = ''
     return NextResponse.redirect(url)
   }
 
