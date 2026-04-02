@@ -174,7 +174,7 @@ export default function TiendasClient({ stores: initialStores }: { stores: any[]
               style={{ width: '100%', padding: '15px 20px', borderRadius: 18, border: '2px solid #2EC4B6', background: '#fff', color: '#0f766e', fontSize: 14, fontWeight: 800, cursor: 'pointer', fontFamily: F, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 2px 12px rgba(46,196,182,0.1)', animation: 'fadeUp 0.2s ease 0.15s both' }}>
               <span>{connecting ? 'Conectando...' : 'Conectar nueva tienda'}</span>
               {connecting
-                ? <div style={{ width: 16, height: 16, border: '2px solid rgba(46,196,182,0.3)', borderTopColor: '#2EC4B6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                ? <div style={{ width: 16, height: 16, border: '2px solid hsla(174, 62%, 48%, 0.30)', borderTopColor: '#2EC4B6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="2.5" strokeLinecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               }
             </button>
