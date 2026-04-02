@@ -7,10 +7,10 @@ export default function PanelLayout({
 }) {
   return (
     <div className="min-h-screen bg-gray-50">
-      <main className="pb-28">
+      <NavBottom />
+      <main>
         {children}
       </main>
-      <NavBottom />
     </div>
   )
 }
