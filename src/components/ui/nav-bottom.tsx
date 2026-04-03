@@ -63,98 +63,207 @@ export default function NavBottom() {
   return (
     <>
       <style>{`
-        .nav-item { transition: all 0.18s cubic-bezier(0.34,1.56,0.64,1); }
-        .nav-item:hover { transform: translateY(1px); }
-        .nav-item:active { transform: scale(0.93); }
-        .nav-label { transition: all 0.15s ease; }
+        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+
+        .nav-root {
+          font-family: 'DM Sans', system-ui, sans-serif;
+          position: fixed;
+          top: 0; left: 0; right: 0;
+          z-index: 100;
+          height: 58px;
+          background: rgba(255,255,255,0.88);
+          backdrop-filter: blur(20px) saturate(180%);
+          -webkit-backdrop-filter: blur(20px) saturate(180%);
+          border-bottom: 1px solid rgba(226,232,240,0.7);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 clamp(12px, 4vw, 32px);
+          box-shadow: 0 1px 0 rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.04);
+          will-change: transform;
+        }
+
+        .nav-logo {
+          text-decoration: none;
+          display: flex;
+          align-items: center;
+          gap: 9px;
+          flex-shrink: 0;
+        }
+
+        .nav-logo-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 10px;
+          background: linear-gradient(135deg, #2EC4B6 0%, #1A9E8F 100%);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 2px 10px rgba(46,196,182,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+          flex-shrink: 0;
+        }
+
+        .nav-logo-text {
+          font-size: 15px;
+          font-weight: 800;
+          color: #0f172a;
+          letter-spacing: -0.6px;
+        }
+
+        .nav-logo-text span {
+          color: #2EC4B6;
+        }
+
+        .nav-links {
+          display: flex;
+          align-items: center;
+          gap: 1px;
+          background: rgba(241,245,249,0.6);
+          border-radius: 14px;
+          padding: 3px;
+          border: 1px solid rgba(226,232,240,0.5);
+        }
+
+        .nav-item {
+          display: flex;
+          flex-direction: row;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 6px 12px;
+          border-radius: 11px;
+          text-decoration: none;
+          color: #94a3b8;
+          font-size: clamp(11px, 1.4vw, 13px);
+          font-weight: 500;
+          letter-spacing: -0.2px;
+          transition: all 0.15s ease;
+          white-space: nowrap;
+          position: relative;
+          will-change: transform;
+        }
+
+        .nav-item:hover {
+          color: #475569;
+          background: rgba(255,255,255,0.7);
+        }
+
+        .nav-item:active {
+          transform: scale(0.96);
+        }
+
+        .nav-item.active {
+          background: #ffffff;
+          color: #0f766e;
+          font-weight: 700;
+          box-shadow: 0 1px 4px rgba(0,0,0,0.08), 0 0 0 1px rgba(46,196,182,0.12);
+        }
+
+        .nav-item.active svg {
+          filter: drop-shadow(0 0 4px rgba(46,196,182,0.3));
+        }
+
+        .nav-badge {
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 5px 11px;
+          border-radius: 20px;
+          background: rgba(46,196,182,0.06);
+          border: 1px solid rgba(46,196,182,0.18);
+        }
+
+        .nav-badge-dot {
+          width: 6px;
+          height: 6px;
+          border-radius: 50%;
+          background: #2EC4B6;
+          box-shadow: 0 0 6px rgba(46,196,182,0.6);
+          animation: pulse-dot 2.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.6; transform: scale(0.85); }
+        }
+
+        .nav-badge-text {
+          font-size: 12px;
+          font-weight: 700;
+          color: #0f766e;
+          letter-spacing: -0.2px;
+          font-family: 'DM Sans', system-ui, sans-serif;
+        }
+
+        /* Responsive: ocultar labels en pantallas pequeñas */
+        @media (max-width: 520px) {
+          .nav-item {
+            padding: 7px 10px;
+            gap: 0;
+          }
+          .nav-label {
+            display: none;
+          }
+          .nav-links {
+            gap: 0;
+          }
+          .nav-badge-text {
+            display: none;
+          }
+          .nav-badge {
+            padding: 6px 8px;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .nav-item {
+            padding: 7px 8px;
+          }
+        }
       `}</style>
 
-      <nav style={{
-        position: 'fixed',
-        top: 0, left: 0, right: 0,
-        zIndex: 100,
-        height: 56,
-        background: 'rgba(255,255,255,0.92)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid #f0fafa',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 clamp(8px,3vw,24px)',
-        fontFamily: 'system-ui,-apple-system,sans-serif',
-      }}>
+      <nav className="nav-root">
 
         {/* Logo */}
-        <Link href="/pedidos" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(135deg,#2EC4B6,#1D9E75)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 8px rgba(46,196,182,0.3)' }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <Link href="/pedidos" className="nav-logo">
+          <div className="nav-logo-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
             </svg>
           </div>
-          <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px' }}>
-            SAMG<span style={{ color: '#2EC4B6' }}>PLE</span>
+          <span className="nav-logo-text">
+            SAMG<span>PLE</span>
           </span>
         </Link>
 
         {/* Nav links */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+        <div className="nav-links">
           {links.map(link => {
             const isActive = pathname.startsWith(link.href)
             return (
               <Link
                 key={link.href}
                 href={link.href}
-                className="nav-item"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 2,
-                  padding: 'clamp(6px,1.5vw,8px) clamp(8px,2vw,14px)',
-                  borderRadius: 12,
-                  textDecoration: 'none',
-                  background: isActive ? 'rgba(46,196,182,0.08)' : 'transparent',
-                  color: isActive ? '#0f766e' : '#94a3b8',
-                  position: 'relative',
-                }}
+                className={`nav-item${isActive ? ' active' : ''}`}
               >
                 {link.icon(isActive)}
-                <span className="nav-label" style={{
-                  fontSize: 'clamp(9px,1.5vw,11px)',
-                  fontWeight: isActive ? 700 : 500,
-                  letterSpacing: '-0.2px',
-                  lineHeight: 1,
-                }}>
-                  {link.label}
-                </span>
-                {isActive && (
-                  <span style={{
-                    position: 'absolute',
-                    bottom: -1,
-                    left: '20%',
-                    right: '20%',
-                    height: 2,
-                    background: 'linear-gradient(90deg,#2EC4B6,#1D9E75)',
-                    borderRadius: 2,
-                  }} />
-                )}
+                <span className="nav-label">{link.label}</span>
               </Link>
             )
           })}
         </div>
 
         {/* Saldo rápido */}
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 20, background: 'rgba(46,196,182,0.06)', border: '1px solid rgba(46,196,182,0.15)' }}>
-          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#2EC4B6', display: 'inline-block' }} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#0f766e' }}>Panel</span>
+        <div className="nav-badge">
+          <span className="nav-badge-dot" />
+          <span className="nav-badge-text">Panel</span>
         </div>
 
       </nav>
 
       {/* Spacer para que el contenido no quede bajo el nav */}
-      <div style={{ height: 56 }} />
+      <div style={{ height: 58 }} />
     </>
   )
 }
