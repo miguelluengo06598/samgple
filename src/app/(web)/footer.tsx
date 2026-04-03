@@ -1,4 +1,4 @@
-// components/Footer.tsx
+// src/app/(web)/footer.tsx
 import Link from 'next/link'
 
 export default function Footer() {
@@ -72,6 +72,15 @@ export default function Footer() {
           z-index: 1;
         }
 
+        .footer-bottom-link {
+          font-size: 11px;
+          color: rgba(255,255,255,0.18);
+          text-decoration: none;
+          font-family: 'DM Sans', system-ui, sans-serif;
+          transition: color .15s;
+        }
+        .footer-bottom-link:hover { color: rgba(255,255,255,0.5); }
+
         .footer-social {
           width: 34px; height: 34px; border-radius: 10px;
           background: rgba(255,255,255,0.06);
@@ -79,6 +88,7 @@ export default function Footer() {
           display: inline-flex; align-items: center; justify-content: center;
           transition: all 0.15s;
           flex-shrink: 0;
+          text-decoration: none;
         }
         .footer-social:hover {
           background: rgba(46,196,182,0.15);
@@ -128,9 +138,7 @@ export default function Footer() {
           .footer-brand { grid-column: span 2; }
         }
         @media(max-width:520px) {
-          .footer-grid {
-            grid-template-columns: 1fr;
-          }
+          .footer-grid { grid-template-columns: 1fr; }
           .footer-brand { grid-column: span 1; }
           .footer-bottom { flex-direction: column; align-items: flex-start; }
         }
@@ -157,7 +165,9 @@ export default function Footer() {
 
             <div className="footer-badge">
               <span className="footer-live-dot" />
-              <span style={{ fontSize:11, fontWeight:700, color:'#5eead4', letterSpacing:'0.05em', fontFamily:"'DM Sans',system-ui,sans-serif" }}>120+ TIENDAS ACTIVAS</span>
+              <span style={{ fontSize:11, fontWeight:700, color:'#5eead4', letterSpacing:'0.05em', fontFamily:"'DM Sans',system-ui,sans-serif" }}>
+                120+ TIENDAS ACTIVAS
+              </span>
             </div>
 
             <p style={{ fontSize:14, color:'rgba(255,255,255,0.4)', lineHeight:1.75, margin:'0 0 24px', maxWidth:300, fontFamily:"'DM Sans',system-ui,sans-serif" }}>
@@ -208,15 +218,13 @@ export default function Footer() {
             <p style={{ fontSize:12, color:'rgba(255,255,255,0.2)', margin:0, fontFamily:"'DM Sans',system-ui,sans-serif" }}>
               © {new Date().getFullYear()} SAMGPLE. Todos los derechos reservados.
             </p>
-            <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
+            <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
               {[
                 { label:'Privacidad', href:'/privacidad' },
                 { label:'Cookies', href:'/cookies' },
                 { label:'Términos', href:'/terminos' },
               ].map(l => (
-                <Link key={l.href} href={l.href} style={{ fontSize:11, color:'rgba(255,255,255,0.18)', textDecoration:'none', fontFamily:"'DM Sans',system-ui,sans-serif", transition:'color .15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.color='rgba(255,255,255,0.5)')}
-                  onMouseLeave={e => (e.currentTarget.style.color='rgba(255,255,255,0.18)')}>
+                <Link key={l.href} href={l.href} className="footer-bottom-link">
                   {l.label}
                 </Link>
               ))}
@@ -225,7 +233,6 @@ export default function Footer() {
 
           {/* Redes sociales */}
           <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-            {/* Instagram */}
             <a href="#" className="footer-social" aria-label="Instagram">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round">
                 <rect x="2" y="2" width="20" height="20" rx="5"/>
@@ -233,7 +240,6 @@ export default function Footer() {
                 <circle cx="17.5" cy="6.5" r="0.5" fill="rgba(255,255,255,0.45)"/>
               </svg>
             </a>
-            {/* LinkedIn */}
             <a href="#" className="footer-social" aria-label="LinkedIn">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-2-2 2 2 0 00-2 2v7h-4v-7a6 6 0 016-6z"/>
@@ -241,13 +247,11 @@ export default function Footer() {
                 <circle cx="4" cy="4" r="2"/>
               </svg>
             </a>
-            {/* X / Twitter */}
             <a href="#" className="footer-social" aria-label="X">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,0.45)">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.912-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
               </svg>
             </a>
-            {/* Email */}
             <a href="mailto:soporte@samgple.com" className="footer-social" aria-label="Email">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="1.8" strokeLinecap="round">
                 <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
@@ -257,7 +261,7 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* ── TAGLINE FINAL ── */}
+        {/* ── TAGLINE ── */}
         <div style={{ textAlign:'center', padding:'20px 0 32px', position:'relative', zIndex:1 }}>
           <p style={{ fontSize:11, color:'rgba(255,255,255,0.1)', margin:0, letterSpacing:'0.15em', textTransform:'uppercase', fontFamily:"'DM Sans',system-ui,sans-serif", fontWeight:600 }}>
             Hecho con precisión para el eCommerce COD
