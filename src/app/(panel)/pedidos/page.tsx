@@ -26,7 +26,7 @@ export default async function PedidosPage() {
       created_at, last_call_at, next_call_at,
       customers(first_name, last_name, phone, email),
       order_items(name, quantity, price),
-      order_risk_analyses(risk_score, risk_level, summary)
+      order_risk_analyses(risk_score, ai_score, base_score, risk_level, summary, human_explanation, recommendation)
     `)
     .eq('account_id', accountUser.account_id)
     .order('created_at', { ascending: false })

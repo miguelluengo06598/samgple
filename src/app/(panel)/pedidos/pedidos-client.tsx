@@ -58,13 +58,13 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
   const supabase = createClient()
 
   const SELECT_QUERY = `
-    id, order_number, status, call_status, call_attempts,
-    call_summary, total_price, phone, shipping_address,
-    created_at, last_call_at, next_call_at,
-    customers(first_name, last_name, phone, email),
-    order_items(name, quantity, price),
-    order_risk_analyses(risk_score, risk_level, summary)
-  `
+  id, order_number, status, call_status, call_attempts,
+  call_summary, total_price, phone, shipping_address,
+  created_at, last_call_at, next_call_at,
+  customers(first_name, last_name, phone, email),
+  order_items(name, quantity, price),
+  order_risk_analyses(risk_score, ai_score, base_score, risk_level, summary, human_explanation, recommendation)
+`
 
   useEffect(() => {
     const channel = supabase.channel(`pedidos-${accountId}`)
