@@ -35,7 +35,6 @@ export default function NavWeb() {
         @keyframes nv-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.75)} }
         @keyframes nv-in    { from{opacity:0;transform:translateY(-12px)} to{opacity:1;transform:translateY(0)} }
         @keyframes nv-fade  { from{opacity:0} to{opacity:1} }
-        @keyframes nv-pop   { from{opacity:0;transform:scale(0.97) translateY(-4px)} to{opacity:1;transform:scale(1) translateY(0)} }
 
         .nv-link {
           font-family:${F}; font-size:13px; font-weight:600;
@@ -106,17 +105,6 @@ export default function NavWeb() {
         .nv-mob-link:hover  { background:#f8fafc; }
         .nv-mob-link:active { background:#f1f5f9; }
 
-        /* Pill live */
-        .nv-live {
-          display:inline-flex; align-items:center; gap:5px;
-          padding:4px 10px; border-radius:20px;
-        }
-        .nv-live-dot {
-          width:5px; height:5px; border-radius:50%; background:#22c55e;
-          animation:nv-pulse 2.5s ease-in-out infinite;
-          box-shadow:0 0 5px rgba(34,197,94,0.7);
-        }
-
         @media(min-width:769px) {
           .nv-ham     { display:none!important; }
           .nv-overlay { display:none!important; }
@@ -166,13 +154,6 @@ export default function NavWeb() {
 
         {/* Acciones desktop */}
         <div className="nv-desk-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          {/* Live pill */}
-          <div className="nv-live"
-            style={{ background: scrolled ? 'rgba(34,197,94,0.07)' : 'rgba(34,197,94,0.1)', border: `1px solid ${scrolled ? 'rgba(34,197,94,0.2)' : 'rgba(34,197,94,0.25)'}`, marginRight: 4 }}>
-            <span className="nv-live-dot" />
-            <span style={{ fontSize: 10, fontWeight: 700, color: scrolled ? '#0f766e' : 'rgba(255,255,255,0.7)', letterSpacing: '0.05em' }}>EN VIVO</span>
-          </div>
-
           <Link href="/login" className={`nv-login ${scrolled ? 'nv-login-light' : 'nv-login-dark'}`}>
             Iniciar sesión
           </Link>
@@ -204,7 +185,9 @@ export default function NavWeb() {
                 <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(135deg,#2EC4B6,#1D9E75)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 10px rgba(46,196,182,0.35)' }}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', fontFamily: F }}>SAMG<span style={{ color: '#2EC4B6' }}>PLE</span></span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.4px', fontFamily: F }}>
+                  SAMG<span style={{ color: '#2EC4B6' }}>PLE</span>
+                </span>
               </Link>
               <button onClick={() => setMenuOpen(false)}
                 style={{ width: 34, height: 34, borderRadius: 10, border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -215,8 +198,7 @@ export default function NavWeb() {
             {/* Links */}
             <div style={{ padding: '8px 6px 4px' }}>
               {navLinks.map((l, i) => (
-                <Link key={l.href} href={l.href} className="nv-mob-link" onClick={() => setMenuOpen(false)}
-                  style={{ animationDelay: `${i * 0.04}s` }}>
+                <Link key={l.href} href={l.href} className="nv-mob-link" onClick={() => setMenuOpen(false)}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                     <span style={{ width: 34, height: 34, borderRadius: 10, background: '#f1f5f9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round"><path d={l.icon}/></svg>
@@ -233,7 +215,7 @@ export default function NavWeb() {
             {/* CTAs */}
             <div style={{ padding: '0 6px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <Link href="/login" onClick={() => setMenuOpen(false)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px', borderRadius: 13, fontSize: 14, fontWeight: 600, color: '#0f172a', textDecoration: 'none', border: '1.5px solid #e2e8f0', background: '#fff', fontFamily: F, transition: 'all 0.14s' }}>
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '13px', borderRadius: 13, fontSize: 14, fontWeight: 600, color: '#0f172a', textDecoration: 'none', border: '1.5px solid #e2e8f0', background: '#fff', fontFamily: F }}>
                 Iniciar sesión
               </Link>
               <Link href="/registro" onClick={() => setMenuOpen(false)}
