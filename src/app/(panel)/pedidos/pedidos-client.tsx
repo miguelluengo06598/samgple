@@ -57,42 +57,49 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
   const [showTranscript, setShowTranscript] = useState<string | null>(null)
   const supabase = createClient()
 
-  const SELECT_QUERY = `
-  id, order_number, status, call_status, call_attempts,
-  call_summary, total_price, phone, shipping_address,
-  created_at, last_call_at, next_call_at,
-  customers(first_name, last_name, phone, email),
-  order_items(name, quantity, price),
-  order_risk_analyses(risk_score, ai_score, base_score, risk_level, summary, human_explanation, recommendation)
-`
-
+  // ── Realtime ──────────────────────────────────────────────────────────────
+  // Usamos la API del servidor para obtener los pedidos desencriptados
+  // en lugar de leerlos directamente desde Supabase en el cliente.
   useEffect(() => {
     const channel = supabase.channel(`pedidos-${accountId}`)
 
-    channel.on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
+    async function fetchDecryptedOrder(orderId: string) {
+      const res = await fetch(`/api/orders/${orderId}`)
+      if (!res.ok) return null
+      const data = await res.json()
+      return data.order ?? null
+    }
+
+    channel.on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
       async (payload) => {
-        const { data } = await supabase.from('orders').select(SELECT_QUERY).eq('id', payload.new.id).single()
-        if (data) {
-          setOrders(prev => [data, ...prev])
-          setNewOrderIds(prev => new Set([...prev, data.id]))
-          setTimeout(() => setNewOrderIds(prev => { const s = new Set(prev); s.delete(data.id); return s }), 4000)
+        const order = await fetchDecryptedOrder(payload.new.id)
+        if (order) {
+          setOrders(prev => [order, ...prev])
+          setNewOrderIds(prev => new Set([...prev, order.id]))
+          setTimeout(() => setNewOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s }), 4000)
         }
       }
     )
 
-    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
       async (payload) => {
-        const { data } = await supabase.from('orders').select(SELECT_QUERY).eq('id', payload.new.id).single()
-        if (data) setOrders(prev => prev.map(o => o.id === data.id ? data : o))
+        const order = await fetchDecryptedOrder(payload.new.id)
+        if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
       }
     )
 
-    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_logs' },
+    channel.on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'call_logs' },
       async (payload) => {
         const log = payload.new as any
         if (!log.order_id) return
-        const { data } = await supabase.from('orders').select(SELECT_QUERY).eq('id', log.order_id).single()
-        if (data) setOrders(prev => prev.map(o => o.id === data.id ? data : o))
+        const order = await fetchDecryptedOrder(log.order_id)
+        if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
       }
     )
 

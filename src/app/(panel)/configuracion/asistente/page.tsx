@@ -14,7 +14,7 @@ export default async function AsistentePage() {
 
   const { data: config } = await admin
     .from('vapi_configs')
-    .select('*')
+    .select('vapi_phone_number_id, assistant_name, active')
     .eq('account_id', accountUser!.account_id)
     .single()
 

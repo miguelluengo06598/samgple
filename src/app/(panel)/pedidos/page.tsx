@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { redirect } from 'next/navigation'
 import PedidosClient from './pedidos-client'
+import { decryptOrders } from '@/services/crypto'
 
 export default async function PedidosPage() {
   const supabase = await createClient()
@@ -31,18 +32,20 @@ export default async function PedidosPage() {
     .order('created_at', { ascending: false })
     .limit(50)
 
-  // Carga los análisis por separado con el admin client (bypasea RLS)
+  // Cargar análisis por separado (bug RLS conocido)
   const orderIds = (orders ?? []).map(o => o.id)
   const { data: analyses } = await admin
     .from('order_risk_analyses')
     .select('order_id, risk_score, ai_score, base_score, risk_level, summary, human_explanation, recommendation')
     .in('order_id', orderIds)
 
-  // Mezcla los análisis con los pedidos
-  const ordersWithRisk = (orders ?? []).map(order => ({
-    ...order,
-    order_risk_analyses: analyses?.filter(a => a.order_id === order.id) ?? [],
-  }))
+  // Mezclar análisis + desencriptar datos sensibles antes de enviar al cliente
+  const ordersWithRisk = decryptOrders(
+    (orders ?? []).map(order => ({
+      ...order,
+      order_risk_analyses: analyses?.filter(a => a.order_id === order.id) ?? [],
+    }))
+  )
 
   return (
     <PedidosClient
