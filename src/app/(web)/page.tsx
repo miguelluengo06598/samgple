@@ -415,41 +415,6 @@ export default function HomePage() {
         .samgple-testi-name { font-size: 13px; font-weight: 700; color: var(--ink); }
         .samgple-testi-role { font-size: 11px; color: var(--muted2); margin-top: 1px; }
 
-        /* Pricing */
-        .samgple-pricing-grid { max-width: 900px; margin: 0 auto; display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; align-items: start; }
-        .samgple-price-card { background: #fff; border: 1.5px solid var(--border2); border-radius: var(--rxl); padding: 26px 22px; transition: all .2s; }
-        .samgple-price-card:hover { transform: translateY(-3px); box-shadow: 0 16px 48px rgba(0,0,0,.08); }
-        .samgple-price-popular { background: var(--ink); border-color: var(--ink); position: relative; }
-        .samgple-popular-badge {
-          position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
-          background: var(--brand); color: #fff; font-size: 10px; font-weight: 700;
-          padding: 4px 14px; border-radius: 100px; white-space: nowrap; letter-spacing: .04em; text-transform: uppercase;
-        }
-        .samgple-price-plan { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--muted); }
-        .samgple-price-popular .samgple-price-plan { color: rgba(255,255,255,.55); }
-        .samgple-price-amount { font-size: 40px; font-weight: 800; letter-spacing: -2px; color: var(--ink); line-height: 1; margin-bottom: 4px; }
-        .samgple-price-popular .samgple-price-amount { color: #fff; }
-        .samgple-price-period { font-size: 12px; color: var(--muted2); margin-bottom: 18px; }
-        .samgple-price-popular .samgple-price-period { color: rgba(255,255,255,.3); }
-        .samgple-price-divider { height: 1px; background: var(--border); margin-bottom: 16px; }
-        .samgple-price-popular .samgple-price-divider { background: rgba(255,255,255,.08); }
-        .samgple-price-feat { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--muted); margin-bottom: 10px; }
-        .samgple-price-popular .samgple-price-feat { color: rgba(255,255,255,.5); }
-        .samgple-price-check { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; background: rgba(16,185,129,.15); display: flex; align-items: center; justify-content: center; }
-        .samgple-price-popular .samgple-price-check { background: rgba(16,185,129,.2); }
-        .samgple-price-btn {
-          display: block; width: 100%; text-align: center; margin-top: 20px;
-          font-size: 14px; font-weight: 700; padding: 12px 18px; border-radius: 11px;
-          text-decoration: none; transition: all .15s; cursor: pointer; border: none;
-          font-family: inherit;
-        }
-        .samgple-price-btn-outline { background: transparent; color: var(--ink); border: 1.5px solid var(--border2); }
-        .samgple-price-btn-outline:hover { background: var(--surface3); }
-        .samgple-price-btn-filled { background: var(--brand); color: #fff; box-shadow: 0 4px 16px rgba(37,99,235,.3); }
-        .samgple-price-btn-filled:hover { background: var(--brand-dark); transform: translateY(-1px); }
-        .samgple-price-btn-dark { background: rgba(255,255,255,.1); color: rgba(255,255,255,.85); border: 1px solid rgba(255,255,255,.1); }
-        .samgple-price-btn-dark:hover { background: rgba(255,255,255,.15); }
-
         /* CTA Final */
         .samgple-cta-final {
           padding: clamp(72px,9vw,100px) 20px;
@@ -488,7 +453,6 @@ export default function HomePage() {
           .samgple-steps-grid { grid-template-columns: 1fr 1fr; }
           .samgple-features-grid { grid-template-columns: 1fr 1fr; }
           .samgple-testi-grid { grid-template-columns: 1fr 1fr; }
-          .samgple-pricing-grid { grid-template-columns: 1fr; max-width: 420px; }
           .samgple-stats-grid { grid-template-columns: repeat(2,1fr); gap: 24px; }
         }
 
@@ -516,7 +480,6 @@ export default function HomePage() {
           .samgple-section { padding: 56px 18px; }
           .samgple-hero-badge { font-size: 11px; }
           .samgple-h2 { letter-spacing: -1px; }
-          .samgple-pricing-grid { max-width: 340px; }
         }
 
         /* Móvil pequeño: ≤400px */
@@ -829,70 +792,6 @@ export default function HomePage() {
               </div>
             </Reveal>
           ))}
-        </div>
-      </section>
-
-      {/* ── PRECIOS ── */}
-      <section className="samgple-section" id="precios" style={{ background: 'var(--surface2)' }}>
-        <div className="samgple-section-hdr">
-          <Reveal>
-            <div className="samgple-tag">Precios</div>
-            <h2 className="samgple-h2">Solo pagas cuando funciona</h2>
-            <p className="samgple-sub">Sin suscripción mensual fija. Sin compromisos. Tokens de bienvenida para que empieces gratis hoy.</p>
-          </Reveal>
-        </div>
-        <div className="samgple-pricing-grid">
-          {/* Starter */}
-          <Reveal delay={0.05}>
-            <div className="samgple-price-card">
-              <div className="samgple-price-plan">Starter</div>
-              <div className="samgple-price-amount">Gratis</div>
-              <div className="samgple-price-period">para siempre · tokens de prueba</div>
-              <div className="samgple-price-divider" />
-              {['50 confirmaciones gratuitas','Score de riesgo IA incluido','Integración Shopify','Dashboard básico'].map((f,i) => (
-                <div key={i} className="samgple-price-feat">
-                  <div className="samgple-price-check"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  {f}
-                </div>
-              ))}
-              <Link href="/registro" className="samgple-price-btn samgple-price-btn-outline">Empezar gratis</Link>
-            </div>
-          </Reveal>
-
-          {/* Growth (popular) */}
-          <Reveal delay={0.1}>
-            <div className="samgple-price-card samgple-price-popular">
-              <div className="samgple-popular-badge">🔥 Más popular</div>
-              <div className="samgple-price-plan">Growth</div>
-              <div className="samgple-price-amount">0.17€</div>
-              <div className="samgple-price-period">por confirmación · pay-per-use</div>
-              <div className="samgple-price-divider" />
-              {['Confirmaciones ilimitadas','Voz IA con tu nombre de marca','Analytics + ROI en tiempo real','15+ señales de riesgo IA','Soporte prioritario 24/7'].map((f,i) => (
-                <div key={i} className="samgple-price-feat">
-                  <div className="samgple-price-check"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  {f}
-                </div>
-              ))}
-              <Link href="/registro" className="samgple-price-btn samgple-price-btn-filled">Empezar ahora</Link>
-            </div>
-          </Reveal>
-
-          {/* Enterprise */}
-          <Reveal delay={0.15}>
-            <div className="samgple-price-card">
-              <div className="samgple-price-plan">Enterprise</div>
-              <div className="samgple-price-amount">Custom</div>
-              <div className="samgple-price-period">volumen alto · acuerdo a medida</div>
-              <div className="samgple-price-divider" />
-              {['Todo lo de Growth','Multi-tienda y multi-idioma','SLA garantizado + API acceso','Onboarding dedicado'].map((f,i) => (
-                <div key={i} className="samgple-price-feat">
-                  <div className="samgple-price-check"><svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-                  {f}
-                </div>
-              ))}
-              <a href="mailto:hola@samgple.com" className="samgple-price-btn samgple-price-btn-outline">Hablar con ventas</a>
-            </div>
-          </Reveal>
         </div>
       </section>
 
