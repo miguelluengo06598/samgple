@@ -44,7 +44,7 @@ function FloatField({
         position: 'relative',
         borderRadius: 16,
         /* Shimmer border trick: padding + conic-gradient background */
-        padding: focused ? 1.5 : 1,
+        padding: focused ? 1.5 : 1.5,
         background: focused
           ? `conic-gradient(from var(--cf-angle, 0deg),
               #2EC4B6 0%,
@@ -53,14 +53,14 @@ function FloatField({
               #f59e0b 75%,
               #2EC4B6 100%)`
           : value.length > 0
-          ? 'linear-gradient(135deg,#cbd5e1,#e2e8f0)'
-          : 'transparent',
+          ? 'linear-gradient(135deg,#94a3b8,#cbd5e1)'
+          : '#d1d5db',   /* borde gris siempre visible en reposo */
         animation: focused ? 'cf2-border-spin 3s linear infinite' : 'none',
-        transition: 'padding 0.2s',
+        transition: 'background 0.25s',
       }}
     >
       <div style={{ position: 'relative', borderRadius: 15, overflow: 'hidden' }}>
-        {/* Floating label */}
+        {/* Floating label — always visible, floats up on focus/value */}
         <label
           htmlFor={id}
           style={{
@@ -68,9 +68,10 @@ function FloatField({
             left: 15,
             top: isFloated ? 8 : isArea ? 15 : '50%',
             transform: isFloated ? 'none' : isArea ? 'none' : 'translateY(-50%)',
-            fontSize: isFloated ? 10 : 14,
-            fontWeight: isFloated ? 700 : 400,
-            color: focused ? '#2EC4B6' : isFloated ? '#94a3b8' : '#9ca3af',
+            fontSize: isFloated ? 10 : 13,
+            fontWeight: isFloated ? 700 : 500,
+            // Always dark enough to read — teal when focused, gray-600 at rest
+            color: focused ? '#2EC4B6' : isFloated ? '#94a3b8' : '#64748b',
             letterSpacing: isFloated ? '0.06em' : '0',
             textTransform: isFloated ? 'uppercase' as const : 'none' as const,
             pointerEvents: 'none',
@@ -105,8 +106,8 @@ function FloatField({
               onBlur={()  => setFocused(false)}
               style={{
                 width: '100%',
-                background: focused ? '#fff' : value.length > 0 ? '#fafcff' : '#f8fafc',
-                border: focused ? 'none' : `1.5px solid ${value.length > 0 ? '#e2e8f0' : '#f1f5f9'}`,
+                background: focused ? '#fff' : '#f8fafc',
+                border: 'none',
                 borderRadius: 15,
                 padding: '20px 36px 6px 15px',
                 fontSize: 14,
@@ -116,9 +117,9 @@ function FloatField({
                 cursor: 'pointer',
                 appearance: 'none',
                 boxShadow: focused
-                  ? '0 0 0 3px rgba(46,196,182,0.12), 0 4px 20px rgba(46,196,182,0.08)'
-                  : '0 1px 3px rgba(0,0,0,0.04)',
-                transition: 'background 0.2s, box-shadow 0.25s',
+                  ? '0 0 0 2px rgba(46,196,182,0.08)'
+                  : 'none',
+                transition: 'background 0.2s',
                 position: 'relative', zIndex: 2,
                 height: 52,
               }}
@@ -145,8 +146,8 @@ function FloatField({
             onBlur={()  => setFocused(false)}
             style={{
               width: '100%',
-              background: focused ? '#fff' : value.length > 0 ? '#fafcff' : '#f8fafc',
-              border: focused ? 'none' : `1.5px solid ${value.length > 0 ? '#e2e8f0' : '#f1f5f9'}`,
+              background: focused ? '#fff' : '#f8fafc',
+              border: 'none',
               borderRadius: 15,
               padding: '22px 15px 10px',
               fontSize: 14,
@@ -155,10 +156,7 @@ function FloatField({
               outline: 'none',
               resize: 'vertical',
               lineHeight: 1.65,
-              boxShadow: focused
-                ? '0 0 0 3px rgba(46,196,182,0.12), 0 4px 20px rgba(46,196,182,0.08)'
-                : '0 1px 3px rgba(0,0,0,0.04)',
-              transition: 'background 0.2s, box-shadow 0.25s',
+              transition: 'background 0.2s',
               position: 'relative', zIndex: 2,
             }}
           />
@@ -173,18 +171,15 @@ function FloatField({
             style={{
               width: '100%',
               height: 52,
-              background: focused ? '#fff' : value.length > 0 ? '#fafcff' : '#f8fafc',
-              border: focused ? 'none' : `1.5px solid ${value.length > 0 ? '#e2e8f0' : '#f1f5f9'}`,
+              background: focused ? '#fff' : '#f8fafc',
+              border: 'none',
               borderRadius: 15,
               padding: '20px 15px 6px',
               fontSize: 14,
               color: '#0f172a',
               fontFamily: 'system-ui,-apple-system,sans-serif',
               outline: 'none',
-              boxShadow: focused
-                ? '0 0 0 3px rgba(46,196,182,0.12), 0 4px 20px rgba(46,196,182,0.08)'
-                : '0 1px 3px rgba(0,0,0,0.04)',
-              transition: 'background 0.2s, box-shadow 0.25s',
+              transition: 'background 0.2s',
               position: 'relative', zIndex: 2,
             }}
           />
