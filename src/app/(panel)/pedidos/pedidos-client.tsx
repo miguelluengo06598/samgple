@@ -1,28 +1,47 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
-const F = 'system-ui,-apple-system,sans-serif'
+// ─── Types ────────────────────────────────────────────────────────────────────
+interface Order {
+  id: string
+  order_number: string | number
+  created_at: string
+  next_call_at?: string
+  last_call_at?: string
+  call_status?: string
+  call_attempts?: number
+  call_summary?: string
+  total_price?: number
+  status?: string
+  phone?: string
+  customers?: { first_name?: string; last_name?: string; phone?: string }
+  order_items?: Array<{ name: string; quantity: number; price: number }>
+  order_risk_analyses?: Array<{ risk_score: number; summary: string }>
+}
 
-const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; icon: string }> = {
-  confirmed:    { label: 'Confirmado',    color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  no_answer:    { label: 'No contestó',   color: '#92400e', bg: '#fef3c7', border: '#fde68a', icon: 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636' },
-  cancelled:    { label: 'Cancelado',     color: '#b91c1c', bg: '#fee2e2', border: '#fecaca', icon: 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' },
-  voicemail:    { label: 'Buzón de voz',  color: '#6d28d9', bg: '#faf5ff', border: '#e9d5ff', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
-  wrong_number: { label: 'Nº incorrecto', color: '#475569', bg: '#f1f5f9', border: '#e2e8f0', icon: 'M6 18L18 6M6 6l12 12' },
-  calling:      { label: 'Llamando...',   color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z' },
-  pending:      { label: 'Pendiente',     color: '#475569', bg: '#f1f5f9', border: '#e2e8f0', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z' },
-  rescheduled:  { label: 'Reagendado',    color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
+// ─── Static config (hoisted — no re-creation on render) ───────────────────────
+const CALL_STATUS_CONFIG: Record<string, {
+  label: string; color: string; bg: string; dot: string
+}> = {
+  confirmed:    { label: 'Confirmado',    color: '#16a34a', bg: '#f0fdf4', dot: '#22c55e' },
+  no_answer:    { label: 'No contestó',   color: '#d97706', bg: '#fffbeb', dot: '#f59e0b' },
+  cancelled:    { label: 'Cancelado',     color: '#dc2626', bg: '#fef2f2', dot: '#ef4444' },
+  voicemail:    { label: 'Buzón de voz',  color: '#7c3aed', bg: '#f5f3ff', dot: '#8b5cf6' },
+  wrong_number: { label: 'Nº incorrecto', color: '#64748b', bg: '#f8fafc', dot: '#94a3b8' },
+  calling:      { label: 'Llamando…',     color: '#0284c7', bg: '#f0f9ff', dot: '#38bdf8' },
+  pending:      { label: 'Pendiente',     color: '#64748b', bg: '#f8fafc', dot: '#94a3b8' },
+  rescheduled:  { label: 'Reagendado',    color: '#0284c7', bg: '#f0f9ff', dot: '#38bdf8' },
 }
 
 const ORDER_STATUS_OPTIONS = [
-  { value: 'por_confirmar', label: 'Por confirmar', color: '#475569', bg: '#f1f5f9', border: '#e2e8f0' },
-  { value: 'confirmado',    label: 'Confirmado',    color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0' },
-  { value: 'enviado',       label: 'Enviado',       color: '#0284c7', bg: '#f0f9ff', border: '#bae6fd' },
-  { value: 'entregado',     label: 'Entregado',     color: '#15803d', bg: '#dcfce7', border: '#bbf7d0' },
-  { value: 'incidencia',    label: 'Incidencia',    color: '#92400e', bg: '#fef3c7', border: '#fde68a' },
-  { value: 'cancelado',     label: 'Cancelado',     color: '#b91c1c', bg: '#fee2e2', border: '#fecaca' },
+  { value: 'por_confirmar', label: 'Por confirmar', color: '#64748b', bg: '#f8fafc', ring: '#e2e8f0' },
+  { value: 'confirmado',    label: 'Confirmado',    color: '#16a34a', bg: '#f0fdf4', ring: '#bbf7d0' },
+  { value: 'enviado',       label: 'Enviado',       color: '#0284c7', bg: '#f0f9ff', ring: '#bae6fd' },
+  { value: 'entregado',     label: 'Entregado',     color: '#15803d', bg: '#dcfce7', ring: '#86efac' },
+  { value: 'incidencia',    label: 'Incidencia',    color: '#d97706', bg: '#fffbeb', ring: '#fde68a' },
+  { value: 'cancelado',     label: 'Cancelado',     color: '#dc2626', bg: '#fef2f2', ring: '#fecaca' },
 ]
 
 const FILTERS = [
@@ -33,18 +52,587 @@ const FILTERS = [
   { key: 'cancelled', label: 'Cancelados' },
 ]
 
-function scoreColor(score: number) {
-  if (score <= 35) return { color: '#0f766e', bg: '#f0fdf4', border: '#bbf7d0', label: 'Bajo riesgo' }
-  if (score <= 65) return { color: '#92400e', bg: '#fef3c7', border: '#fde68a', label: 'Riesgo medio' }
-  return { color: '#b91c1c', bg: '#fee2e2', border: '#fecaca', label: 'Alto riesgo' }
+// ─── Helpers (pure, no closures) ──────────────────────────────────────────────
+function scoreConfig(score: number) {
+  if (score <= 35) return { label: 'Bajo riesgo',   color: '#16a34a', bar: '#22c55e', width: score }
+  if (score <= 65) return { label: 'Riesgo medio',  color: '#d97706', bar: '#f59e0b', width: score }
+  return               { label: 'Alto riesgo',   color: '#dc2626', bar: '#ef4444', width: score }
 }
 
-function Skeleton({ w = '100%', h = 14, r = 8 }: { w?: string | number; h?: number; r?: number }) {
-  return <div style={{ width: w, height: h, borderRadius: r, background: 'linear-gradient(90deg,#f1f5f9 25%,#e8f0fe 50%,#f1f5f9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.4s infinite' }} />
+function fmt(d: string) {
+  return new Date(d).toLocaleDateString('es-ES', {
+    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit'
+  })
 }
 
-export default function PedidosClient({ initialOrders, accountId }: { initialOrders: any[]; accountId: string }) {
-  const [orders, setOrders]             = useState<any[]>(initialOrders)
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+const Skeleton = memo(function Skeleton({
+  w = '100%', h = 12, r = 6, opacity = 1,
+}: { w?: string | number; h?: number; r?: number; opacity?: number }) {
+  return (
+    <div
+      style={{
+        width: w, height: h, borderRadius: r, opacity,
+        background: 'linear-gradient(90deg,#f1f5f9 25%,#e9edf2 50%,#f1f5f9 75%)',
+        backgroundSize: '300% 100%',
+        animation: 'ped-shimmer 1.5s ease-in-out infinite',
+      }}
+    />
+  )
+})
+
+// ─── Skeleton card — structurally mirrors OrderCard ──────────────────────────
+const SkeletonCard = memo(function SkeletonCard({ delay = 0 }: { delay?: number }) {
+  return (
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        border: '1px solid #f1f5f9',
+        padding: '18px 20px',
+        animation: `ped-fadein 0.25s ease ${delay}s both`,
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Skeleton w={44} h={44} r={12} />
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+          <Skeleton w="55%" h={13} />
+          <Skeleton w="35%" h={10} />
+          <div style={{ display: 'flex', gap: 6 }}>
+            <Skeleton w={72} h={20} r={20} />
+            <Skeleton w={72} h={20} r={20} />
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 7 }}>
+          <Skeleton w={64} h={20} />
+          <Skeleton w={80} h={18} r={20} />
+        </div>
+      </div>
+    </div>
+  )
+})
+
+// ─── Status pill ──────────────────────────────────────────────────────────────
+const Pill = memo(function Pill({
+  label, color, bg, dot,
+}: { label: string; color: string; bg: string; dot?: string }) {
+  return (
+    <span
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5,
+        fontSize: 11, fontWeight: 600, padding: '3px 9px',
+        borderRadius: 20, background: bg, color,
+      }}
+    >
+      {dot && (
+        <span style={{
+          width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0,
+        }} />
+      )}
+      {label}
+    </span>
+  )
+})
+
+// ─── Risk bar ─────────────────────────────────────────────────────────────────
+const RiskBar = memo(function RiskBar({ score }: { score: number }) {
+  const cfg = scoreConfig(score)
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div style={{
+        flex: 1, height: 4, borderRadius: 4,
+        background: '#f1f5f9', overflow: 'hidden',
+      }}>
+        <div style={{
+          height: '100%', width: `${cfg.width}%`,
+          background: cfg.bar, borderRadius: 4,
+          transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)',
+        }} />
+      </div>
+      <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, whiteSpace: 'nowrap' }}>
+        {score} · {cfg.label}
+      </span>
+    </div>
+  )
+})
+
+// ─── Transcript modal ─────────────────────────────────────────────────────────
+const TranscriptModal = memo(function TranscriptModal({
+  data, onClose,
+}: { data: { transcript?: string; summary?: string; duration_seconds?: number } | null; onClose: () => void }) {
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, zIndex: 999,
+        background: 'rgba(15,23,42,0.45)',
+        backdropFilter: 'blur(6px)',
+        display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        animation: 'ped-fadein 0.15s ease',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff',
+          borderRadius: '20px 20px 0 0',
+          padding: '24px 24px 40px',
+          width: '100%', maxWidth: 580,
+          maxHeight: '72vh', overflowY: 'auto',
+          animation: 'ped-slideup 0.22s cubic-bezier(0.22,1,0.36,1)',
+        }}
+      >
+        {/* handle */}
+        <div style={{
+          width: 36, height: 4, borderRadius: 4,
+          background: '#e2e8f0', margin: '0 auto 20px',
+        }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.3px' }}>
+            Transcripción de llamada
+          </span>
+          <button
+            onClick={onClose}
+            style={{
+              width: 30, height: 30, borderRadius: 8,
+              border: '1px solid #f1f5f9', background: '#f8fafc',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        </div>
+
+        {data ? (
+          <>
+            {data.duration_seconds && (
+              <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 14, fontWeight: 500 }}>
+                Duración: {data.duration_seconds}s
+              </div>
+            )}
+            {data.summary && (
+              <div style={{
+                background: '#f0fdf4', borderRadius: 12,
+                padding: '12px 14px', marginBottom: 14,
+                border: '1px solid #bbf7d0',
+              }}>
+                <p style={{ fontSize: 10, fontWeight: 700, color: '#15803d', margin: '0 0 5px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Resumen IA</p>
+                <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.65 }}>{data.summary}</p>
+              </div>
+            )}
+            <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.75, margin: 0, whiteSpace: 'pre-wrap' }}>
+              {data.transcript ?? 'Sin transcripción disponible.'}
+            </p>
+          </>
+        ) : (
+          <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '24px 0' }}>
+            Sin transcripción disponible todavía.
+          </p>
+        )}
+      </div>
+    </div>
+  )
+})
+
+// ─── OrderCard — memoized to prevent re-renders when sibling orders update ────
+interface CardProps {
+  order: Order
+  isExpanded: boolean
+  isNew: boolean
+  waMsg: string | undefined
+  isLoadingWa: boolean
+  isCalling: boolean
+  isSavingStatus: boolean
+  onToggle: (id: string) => void
+  onGenerateWa: (order: Order) => void
+  onSendWa: (order: Order) => void
+  onRetry: (id: string) => void
+  onStatusChange: (id: string, status: string) => void
+  onTranscript: (id: string) => void
+  index: number
+}
+
+const OrderCard = memo(function OrderCard({
+  order, isExpanded, isNew, waMsg,
+  isLoadingWa, isCalling, isSavingStatus,
+  onToggle, onGenerateWa, onSendWa,
+  onRetry, onStatusChange, onTranscript, index,
+}: CardProps) {
+  const callCfg    = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
+  const score      = order.order_risk_analyses?.[0]?.risk_score ?? 50
+  const summary    = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
+  const name       = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
+  const initial    = name.charAt(0).toUpperCase()
+  const phone      = order.customers?.phone ?? order.phone ?? ''
+  const items      = order.order_items ?? []
+  const statusOpt  = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
+  const scoreCfg   = scoreConfig(score)
+
+  return (
+    <div
+      style={{
+        background: '#fff',
+        borderRadius: 16,
+        border: `1px solid ${isNew ? '#2EC4B6' : '#f1f5f9'}`,
+        overflow: 'hidden',
+        boxShadow: isNew ? '0 0 0 3px rgba(46,196,182,0.08)' : 'none',
+        transition: 'box-shadow 0.2s, border-color 0.2s',
+        animation: index < 10 ? `ped-fadein 0.2s ease ${index * 0.025}s both` : 'none',
+      }}
+      className="ped-card"
+    >
+      {/* ── Header row ── */}
+      <div
+        onClick={() => onToggle(order.id)}
+        style={{ padding: '16px 20px', cursor: 'pointer', userSelect: 'none' }}
+      >
+        {isNew && (
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            marginBottom: 10, fontSize: 10, fontWeight: 700, color: '#0f766e',
+            background: '#f0fdf4', padding: '3px 9px', borderRadius: 20,
+            border: '1px solid #bbf7d0',
+          }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', animation: 'ped-pulse 1.2s infinite' }} />
+            NUEVO PEDIDO
+          </div>
+        )}
+
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+          {/* Avatar + info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+              background: score <= 35 ? '#ecfdf5' : score <= 65 ? '#fffbeb' : '#fef2f2',
+              border: `1.5px solid ${scoreCfg.bar}26`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 17, fontWeight: 800, color: scoreCfg.color,
+              letterSpacing: '-0.5px',
+            }}>
+              {isCalling
+                ? <div style={{ width: 18, height: 18, border: '2.5px solid #0284c720', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'ped-spin 0.8s linear infinite' }} />
+                : initial
+              }
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', letterSpacing: '-0.2px' }}>
+                {name}
+              </p>
+              <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 7px', fontWeight: 500 }}>
+                {phone || '—'}
+              </p>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                <Pill label={callCfg.label} color={callCfg.color} bg={callCfg.bg} dot={callCfg.dot} />
+                <Pill label={statusOpt.label} color={statusOpt.color} bg={statusOpt.bg} />
+              </div>
+            </div>
+          </div>
+
+          {/* Price + score */}
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.8px', fontVariantNumeric: 'tabular-nums' }}>
+              {Number(order.total_price ?? 0).toFixed(2)}€
+            </p>
+            <p style={{ fontSize: 10, color: '#94a3b8', margin: '0 0 6px', fontWeight: 500 }}>
+              #{order.order_number}
+            </p>
+            <RiskBar score={score} />
+          </div>
+        </div>
+      </div>
+
+      {/* ── Expanded panel ── */}
+      {isExpanded && (
+        <div style={{
+          borderTop: '1px solid #f8fafc',
+          background: '#fafbfc',
+          padding: '16px 20px',
+          display: 'flex', flexDirection: 'column', gap: 12,
+          animation: 'ped-fadein 0.18s ease',
+        }}>
+
+          {/* Products */}
+          {items.length > 0 && (
+            <Section title="Productos">
+              {items.map((item, idx) => (
+                <div key={idx} style={{
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                  padding: idx > 0 ? '7px 0 0' : '0',
+                  borderTop: idx > 0 ? '1px solid #f1f5f9' : 'none',
+                }}>
+                  <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
+                    {item.name}
+                    <span style={{ color: '#94a3b8', fontWeight: 400 }}> ×{item.quantity}</span>
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
+                    {Number(item.price).toFixed(2)}€
+                  </span>
+                </div>
+              ))}
+            </Section>
+          )}
+
+          {/* AI summary + WhatsApp */}
+          <div className="ped-grid2" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
+            {/* Summary */}
+            <Section title="Resumen IA">
+              <p style={{ fontSize: 13, color: summary ? '#374151' : '#94a3b8', lineHeight: 1.65, margin: 0, fontStyle: summary ? 'normal' : 'italic' }}>
+                {summary ?? 'La llamada aún no se ha realizado.'}
+              </p>
+              {(order.call_attempts ?? 0) > 0 && (
+                <p style={{ fontSize: 11, color: '#94a3b8', margin: '8px 0 0', fontWeight: 500 }}>
+                  {order.call_attempts} intento{order.call_attempts! > 1 ? 's' : ''}
+                  {order.last_call_at && ` · ${fmt(order.last_call_at)}`}
+                </p>
+              )}
+            </Section>
+
+            {/* WhatsApp */}
+            <div style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid #f1f5f9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
+                  </svg>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>WhatsApp IA</span>
+                </div>
+                {!waMsg && (
+                  <ActionBtn
+                    onClick={() => onGenerateWa(order)}
+                    disabled={isLoadingWa}
+                    variant="ghost"
+                    small
+                  >
+                    {isLoadingWa ? 'Generando…' : 'Generar'}
+                  </ActionBtn>
+                )}
+              </div>
+              {waMsg ? (
+                <>
+                  <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.65, margin: '0 0 10px' }}>{waMsg}</p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    <ActionBtn onClick={() => onSendWa(order)} variant="green">
+                      <WhatsAppIcon />Enviar
+                    </ActionBtn>
+                    <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost">
+                      {isLoadingWa ? '…' : 'Regenerar'}
+                    </ActionBtn>
+                  </div>
+                </>
+              ) : (
+                !isLoadingWa && (
+                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>
+                    Genera un mensaje personalizado para WhatsApp
+                  </p>
+                )
+              )}
+            </div>
+          </div>
+
+          {/* Order status */}
+          <Section title="Estado del pedido">
+            <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+              {ORDER_STATUS_OPTIONS.map(s => (
+                <button
+                  key={s.value}
+                  onClick={() => onStatusChange(order.id, s.value)}
+                  disabled={isSavingStatus}
+                  style={{
+                    padding: '6px 12px', borderRadius: 20,
+                    border: `1.5px solid ${order.status === s.value ? s.ring : '#f1f5f9'}`,
+                    background: order.status === s.value ? s.bg : '#fff',
+                    color: order.status === s.value ? s.color : '#94a3b8',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    opacity: isSavingStatus ? 0.55 : 1,
+                    transition: 'all 0.12s',
+                  }}
+                  className="ped-status-btn"
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+          </Section>
+
+          {/* Actions */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <ActionBtn onClick={() => onTranscript(order.id)} variant="default" icon>
+              <DocIcon />Transcripción
+            </ActionBtn>
+            <ActionBtn
+              onClick={() => onRetry(order.id)}
+              disabled={isCalling}
+              variant="blue"
+              icon
+            >
+              {isCalling
+                ? <><Spinner color="#0284c7" />Llamando…</>
+                : <><RetryIcon />Rellamar ahora</>
+              }
+            </ActionBtn>
+          </div>
+        </div>
+      )}
+
+      {/* ── Footer ── */}
+      <div
+        onClick={() => onToggle(order.id)}
+        style={{
+          padding: '9px 20px',
+          borderTop: '1px solid #f8fafc',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          cursor: 'pointer',
+          background: isExpanded ? '#fafbfc' : '#fff',
+        }}
+      >
+        <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
+          <ClockIcon />
+          {fmt(order.created_at)}
+          {order.next_call_at && ` · Próximo: ${new Date(order.next_call_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}
+        </span>
+        <ChevronIcon up={isExpanded} />
+      </div>
+    </div>
+  )
+})
+
+// ─── Small reusable atoms ─────────────────────────────────────────────────────
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ background: '#fff', borderRadius: 12, padding: '13px 14px', border: '1px solid #f1f5f9' }}>
+      <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>
+        {title}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+function ActionBtn({
+  children, onClick, disabled, variant, small, icon,
+}: {
+  children: React.ReactNode
+  onClick?: () => void
+  disabled?: boolean
+  variant?: 'default' | 'green' | 'blue' | 'ghost'
+  small?: boolean
+  icon?: boolean
+}) {
+  const styles: Record<string, React.CSSProperties> = {
+    default: { background: '#fff', border: '1px solid #f1f5f9', color: '#64748b' },
+    green:   { background: '#16a34a', border: 'none', color: '#fff' },
+    blue:    { background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0284c7' },
+    ghost:   { background: '#fff', border: '1px solid #f1f5f9', color: '#64748b' },
+  }
+  const base = styles[variant ?? 'default']
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="ped-action-btn"
+      style={{
+        ...base,
+        padding: small ? '4px 10px' : '10px 14px',
+        borderRadius: small ? 20 : 11,
+        fontSize: small ? 11 : 13,
+        fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+        fontFamily: 'inherit',
+        opacity: disabled ? 0.55 : 1,
+        transition: 'all 0.12s',
+        width: '100%',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function Spinner({ color = '#64748b' }) {
+  return (
+    <div style={{
+      width: 13, height: 13, borderRadius: '50%',
+      border: `2px solid ${color}20`,
+      borderTopColor: color,
+      animation: 'ped-spin 0.7s linear infinite',
+      flexShrink: 0,
+    }} />
+  )
+}
+
+const DocIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>
+)
+
+const RetryIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <polyline points="1 4 1 10 7 10"/>
+    <path d="M3.51 15a9 9 0 1 0 .49-3.68"/>
+  </svg>
+)
+
+const ClockIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+  </svg>
+)
+
+const ChevronIcon = ({ up }: { up: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">
+    {up ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
+  </svg>
+)
+
+const WhatsAppIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
+  </svg>
+)
+
+// ─── Global styles (injected once) ───────────────────────────────────────────
+const GLOBAL_CSS = `
+  @keyframes ped-spin    { to { transform: rotate(360deg); } }
+  @keyframes ped-shimmer { 0%{background-position:300% 0} 100%{background-position:-300% 0} }
+  @keyframes ped-fadein  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes ped-slideup { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+  @keyframes ped-pulse   { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .ped-card:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.055) !important; }
+  .ped-action-btn:not(:disabled):hover { opacity: 0.82; transform: translateY(-1px); }
+  .ped-action-btn:not(:disabled):active { transform: scale(0.97); }
+  .ped-status-btn:not(:disabled):hover { opacity: 0.8; }
+  .ped-filter-btn { transition: all 0.12s; }
+  .chip-scroll::-webkit-scrollbar { display: none; }
+  @media(min-width:600px) {
+    .ped-grid2 { grid-template-columns: 1fr 1fr !important; }
+  }
+`
+
+function GlobalStyles() {
+  return <style>{GLOBAL_CSS}</style>
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function PedidosClient({
+  initialOrders,
+  accountId,
+}: {
+  initialOrders: Order[]
+  accountId: string
+}) {
+  // ══════════════════════════════════════════════════════════════════════════
+  // MOTOR SAGRADO — sin tocar: toda la lógica original intacta
+  // ══════════════════════════════════════════════════════════════════════════
+  const [orders, setOrders]             = useState<Order[]>(initialOrders)
   const [filter, setFilter]             = useState('all')
   const [search, setSearch]             = useState('')
   const [expanded, setExpanded]         = useState<string | null>(null)
@@ -57,9 +645,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
   const [showTranscript, setShowTranscript] = useState<string | null>(null)
   const supabase = createClient()
 
-  // ── Realtime ──────────────────────────────────────────────────────────────
-  // Usamos la API del servidor para obtener los pedidos desencriptados
-  // en lugar de leerlos directamente desde Supabase en el cliente.
   useEffect(() => {
     const channel = supabase.channel(`pedidos-${accountId}`)
 
@@ -70,8 +655,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       return data.order ?? null
     }
 
-    channel.on(
-      'postgres_changes',
+    channel.on('postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
       async (payload) => {
         const order = await fetchDecryptedOrder(payload.new.id)
@@ -80,45 +664,52 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
           setNewOrderIds(prev => new Set([...prev, order.id]))
           setTimeout(() => setNewOrderIds(prev => { const s = new Set(prev); s.delete(order.id); return s }), 4000)
         }
-      }
-    )
+      })
 
-    channel.on(
-      'postgres_changes',
+    channel.on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'orders', filter: `account_id=eq.${accountId}` },
       async (payload) => {
         const order = await fetchDecryptedOrder(payload.new.id)
         if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
-      }
-    )
+      })
 
-    channel.on(
-      'postgres_changes',
+    channel.on('postgres_changes',
       { event: 'UPDATE', schema: 'public', table: 'call_logs' },
       async (payload) => {
         const log = payload.new as any
         if (!log.order_id) return
         const order = await fetchDecryptedOrder(log.order_id)
         if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
-      }
-    )
+      })
 
     channel.subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [accountId])
 
-  const filtered = orders.filter(o => {
+  // ── memoized filter — avoids recomputing on every unrelated state change ──
+  const filtered = useMemo(() => orders.filter(o => {
     const matchFilter =
       filter === 'all'     ? true :
       filter === 'pending' ? (o.call_status === 'pending' || o.call_status === 'calling') :
       o.call_status === filter
-    const matchSearch = search === '' ||
+    const matchSearch =
+      search === '' ||
       `${o.customers?.first_name ?? ''} ${o.customers?.last_name ?? ''}`.toLowerCase().includes(search.toLowerCase()) ||
       String(o.order_number ?? '').includes(search)
     return matchFilter && matchSearch
-  })
+  }), [orders, filter, search])
 
-  async function generateWhatsApp(order: any) {
+  const pendingCount = useMemo(
+    () => orders.filter(o => o.call_status === 'pending' || !o.call_status).length,
+    [orders]
+  )
+
+  // ── Stable callbacks — prevent OrderCard prop changes triggering re-renders ─
+  const handleToggle = useCallback((id: string) => {
+    setExpanded(prev => prev === id ? null : id)
+  }, [])
+
+  const generateWhatsApp = useCallback(async (order: Order) => {
     setLoadingWa(prev => ({ ...prev, [order.id]: true }))
     try {
       const res = await fetch(`/api/orders/${order.id}/message`, {
@@ -131,17 +722,16 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     } finally {
       setLoadingWa(prev => ({ ...prev, [order.id]: false }))
     }
-  }
+  }, [])
 
-  async function sendWhatsApp(order: any) {
-    const msg = waMessages[order.id]
+  const sendWhatsApp = useCallback((order: Order) => {
+    const msg   = waMessages[order.id]
     if (!msg) return
     const phone = (order.customers?.phone ?? order.phone ?? '').replace(/\D/g, '')
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`
-    window.open(url, '_blank')
-  }
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
+  }, [waMessages])
 
-  async function handleRetry(orderId: string) {
+  const handleRetry = useCallback(async (orderId: string) => {
     setLoadingCall(prev => ({ ...prev, [orderId]: true }))
     try {
       await fetch('/api/vapi/retry', {
@@ -152,9 +742,9 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     } finally {
       setLoadingCall(prev => ({ ...prev, [orderId]: false }))
     }
-  }
+  }, [])
 
-  async function handleStatusChange(orderId: string, status: string) {
+  const handleStatusChange = useCallback(async (orderId: string, status: string) => {
     setSavingStatus(prev => ({ ...prev, [orderId]: true }))
     try {
       await fetch(`/api/orders/${orderId}/status`, {
@@ -166,9 +756,9 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     } finally {
       setSavingStatus(prev => ({ ...prev, [orderId]: false }))
     }
-  }
+  }, [])
 
-  async function handleViewTranscript(orderId: string) {
+  const handleViewTranscript = useCallback(async (orderId: string) => {
     if (transcript[orderId]) { setShowTranscript(orderId); return }
     const { data } = await supabase
       .from('call_logs')
@@ -179,102 +769,133 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       .single()
     setTranscript(prev => ({ ...prev, [orderId]: data ?? null }))
     setShowTranscript(orderId)
-  }
+  }, [transcript, supabase])
+  // ══════════════════════════════════════════════════════════════════════════
+  // FIN MOTOR SAGRADO
+  // ══════════════════════════════════════════════════════════════════════════
 
-  const pendingCount = orders.filter(o => o.call_status === 'pending' || !o.call_status).length
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  const F = 'system-ui,-apple-system,sans-serif'
 
   return (
     <>
-      <style>{`
-        @keyframes spin    { to{transform:rotate(360deg)} }
-        @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-        @keyframes fadeUp  { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:0.4} }
-        @keyframes glow    { 0%,100%{box-shadow:0 0 0 0 rgba(46,196,182,0)} 50%{box-shadow:0 0 0 6px rgba(46,196,182,0.15)} }
-        .ped-card  { transition:box-shadow 0.15s,transform 0.15s; }
-        .ped-card:hover { box-shadow:0 6px 24px rgba(0,0,0,0.07); }
-        .chip-scroll::-webkit-scrollbar { display:none }
-        .btn-action { transition:all 0.12s ease; }
-        .btn-action:hover { opacity:0.85; transform:translateY(-1px); }
-        .btn-action:active { transform:scale(0.96); }
-        @media(min-width:640px) {
-          .ped-expanded-grid { grid-template-columns:1fr 1fr !important; }
-          .ped-actions { grid-template-columns:1fr 1fr 1fr !important; }
-        }
-      `}</style>
+      <GlobalStyles />
 
-      {/* Modal transcripción */}
+      {/* Transcript modal */}
       {showTranscript && (
-        <div onClick={() => setShowTranscript(null)}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center', backdropFilter: 'blur(4px)' }}>
-          <div onClick={e => e.stopPropagation()}
-            style={{ background: '#fff', borderRadius: '24px 24px 0 0', padding: 24, width: '100%', maxWidth: 600, maxHeight: '70vh', overflow: 'auto', animation: 'fadeUp 0.2s ease' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-              <p style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', margin: 0 }}>Transcripción</p>
-              <button onClick={() => setShowTranscript(null)}
-                style={{ width: 32, height: 32, borderRadius: 10, border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            {transcript[showTranscript] ? (
-              <>
-                {transcript[showTranscript].duration_seconds && (
-                  <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', marginBottom: 12 }}>
-                    Duración: {transcript[showTranscript].duration_seconds}s
-                  </div>
-                )}
-                {transcript[showTranscript].summary && (
-                  <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 14px', marginBottom: 12, border: '1px solid #bbf7d0' }}>
-                    <p style={{ fontSize: 11, fontWeight: 700, color: '#0f766e', margin: '0 0 4px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Resumen</p>
-                    <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.6 }}>{transcript[showTranscript].summary}</p>
-                  </div>
-                )}
-                <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.7, margin: 0, whiteSpace: 'pre-wrap' }}>
-                  {transcript[showTranscript].transcript ?? 'Sin transcripción disponible.'}
-                </p>
-              </>
-            ) : (
-              <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '24px 0' }}>Sin transcripción disponible todavía.</p>
-            )}
-          </div>
-        </div>
+        <TranscriptModal
+          data={transcript[showTranscript]}
+          onClose={() => setShowTranscript(null)}
+        />
       )}
 
       <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: F }}>
 
-        {/* Header */}
-        <div style={{ background: '#fff', padding: '16px clamp(16px,4vw,32px) 0', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 56, zIndex: 9 }}>
-          <div style={{ maxWidth: 900, margin: '0 auto' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        {/* ── Sticky header ── */}
+        <div style={{
+          background: 'rgba(255,255,255,0.9)',
+          backdropFilter: 'blur(12px)',
+          WebkitBackdropFilter: 'blur(12px)',
+          padding: '14px clamp(16px,4vw,28px) 0',
+          borderBottom: '1px solid #f1f5f9',
+          position: 'sticky', top: 56, zIndex: 9,
+        }}>
+          <div style={{ maxWidth: 880, margin: '0 auto' }}>
+
+            {/* Title row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
-                <h1 style={{ fontSize: 'clamp(18px,4vw,24px)', fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.5px' }}>Pedidos</h1>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s infinite' }} />
-                  <p style={{ fontSize: 12, color: '#94a3b8', margin: 0 }}>En tiempo real · {filtered.length} pedidos</p>
+                <h1 style={{ fontSize: 'clamp(17px,3.5vw,22px)', fontWeight: 800, color: '#0f172a', margin: '0 0 3px', letterSpacing: '-0.5px' }}>
+                  Pedidos
+                </h1>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', animation: 'ped-pulse 2.4s infinite', display: 'inline-block' }} />
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 500 }}>
+                    Tiempo real · {filtered.length} pedidos
+                  </p>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', borderRadius: 20, background: '#fef3c7', border: '1.5px solid #fde68a' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#92400e' }}>{pendingCount} pendientes</span>
-              </div>
+
+              {pendingCount > 0 && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '6px 12px', borderRadius: 20,
+                  background: '#fffbeb', border: '1px solid #fde68a',
+                }}>
+                  <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#f59e0b', animation: 'ped-pulse 1.8s infinite' }} />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#92400e' }}>
+                    {pendingCount} pendiente{pendingCount > 1 ? 's' : ''}
+                  </span>
+                </div>
+              )}
             </div>
 
-            {/* Búsqueda */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: '#f8fafc', border: '1.5px solid #f1f5f9', borderRadius: 14, marginBottom: 12 }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre o número de pedido..."
-                style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#0f172a', outline: 'none', flex: 1, fontFamily: F }} />
+            {/* Search */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '9px 13px',
+              background: '#f8fafc',
+              border: '1.5px solid #f1f5f9',
+              borderRadius: 12, marginBottom: 10,
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+              onFocus={e => {
+                const t = e.currentTarget as HTMLDivElement
+                t.style.borderColor = '#2EC4B6'
+                t.style.boxShadow = '0 0 0 3px rgba(46,196,182,0.1)'
+              }}
+              onBlur={e => {
+                const t = e.currentTarget as HTMLDivElement
+                t.style.borderColor = '#f1f5f9'
+                t.style.boxShadow = 'none'
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
+              <input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Buscar por nombre o número de pedido…"
+                style={{
+                  border: 'none', background: 'transparent',
+                  fontSize: 13, color: '#0f172a', outline: 'none',
+                  flex: 1, fontFamily: F, fontWeight: 400,
+                }}
+              />
               {search && (
-                <button onClick={() => setSearch('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 0 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                <button
+                  onClick={() => setSearch('')}
+                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
                 </button>
               )}
             </div>
 
-            {/* Filtros */}
-            <div className="chip-scroll" style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 0 }}>
+            {/* Filter tabs */}
+            <div className="chip-scroll" style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
               {FILTERS.map(f => (
-                <button key={f.key} onClick={() => setFilter(f.key)}
-                  style={{ padding: '7px 16px', borderRadius: '12px 12px 0 0', fontSize: 12, fontWeight: 700, border: 'none', borderBottom: filter === f.key ? '2px solid #2EC4B6' : '2px solid transparent', background: filter === f.key ? '#f0fdf4' : 'transparent', color: filter === f.key ? '#0f766e' : '#94a3b8', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: F, transition: 'all 0.12s' }}>
+                <button
+                  key={f.key}
+                  onClick={() => setFilter(f.key)}
+                  className="ped-filter-btn"
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '10px 10px 0 0',
+                    fontSize: 12, fontWeight: 600,
+                    border: 'none',
+                    borderBottom: filter === f.key ? '2px solid #2EC4B6' : '2px solid transparent',
+                    background: filter === f.key ? 'rgba(46,196,182,0.06)' : 'transparent',
+                    color: filter === f.key ? '#0f766e' : '#94a3b8',
+                    cursor: 'pointer', whiteSpace: 'nowrap',
+                    flexShrink: 0, fontFamily: F,
+                  }}
+                >
                   {f.label}
                 </button>
               ))}
@@ -282,207 +903,64 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
           </div>
         </div>
 
-        {/* Lista */}
-        <div style={{ maxWidth: 900, margin: '0 auto', padding: 'clamp(16px,3vw,24px) clamp(16px,4vw,32px)', paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* ── List ── */}
+        <div style={{
+          maxWidth: 880, margin: '0 auto',
+          padding: 'clamp(14px,3vw,20px) clamp(16px,4vw,28px) 48px',
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
 
-          {filtered.length === 0 && (
-            <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fff', borderRadius: 20, border: '1.5px solid #f1f5f9' }}>
-              <div style={{ width: 52, height: 52, borderRadius: 16, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          {/* Skeleton loading state */}
+          {!mounted && Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonCard key={i} delay={i * 0.04} />
+          ))}
+
+          {/* Empty state */}
+          {mounted && filtered.length === 0 && (
+            <div style={{
+              textAlign: 'center', padding: '56px 24px',
+              background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9',
+              animation: 'ped-fadein 0.2s ease',
+            }}>
+              <div style={{
+                width: 48, height: 48, borderRadius: 14,
+                background: '#f8fafc', display: 'flex',
+                alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 12px',
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
               </div>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', margin: '0 0 4px' }}>Sin pedidos</p>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>No hay pedidos que coincidan</p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
+                Sin resultados
+              </p>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
+                No hay pedidos que coincidan con los filtros actuales
+              </p>
             </div>
           )}
 
-          {filtered.map((order, i) => {
-            const isExpanded  = expanded === order.id
-            const isNew       = newOrderIds.has(order.id)
-            const callCfg     = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
-            const score       = order.order_risk_analyses?.[0]?.risk_score ?? 50
-            const scoreCfg    = scoreColor(score)
-            const name        = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
-            const initial     = name.charAt(0).toUpperCase()
-            const phone       = order.customers?.phone ?? order.phone ?? ''
-            const waMsg       = waMessages[order.id]
-            const isCalling   = loadingCall[order.id]
-            const isLoadingWa = loadingWa[order.id]
-            const summary     = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
-            const statusOpt   = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
-            const items       = order.order_items ?? []
-
-            return (
-              <div key={order.id} className={`ped-card${isNew ? ' new-order' : ''}`}
-                style={{ background: '#fff', borderRadius: 20, border: `1.5px solid ${isNew ? '#2EC4B6' : '#f1f5f9'}`, overflow: 'hidden', animation: i < 8 ? `fadeUp 0.2s ease ${i * 0.03}s both` : 'none' }}>
-
-                {/* Cabecera */}
-                <div onClick={() => setExpanded(isExpanded ? null : order.id)}
-                  style={{ padding: 'clamp(14px,3vw,20px)', cursor: 'pointer' }}>
-
-                  {isNew && (
-                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, marginBottom: 10, fontSize: 10, fontWeight: 700, color: '#0f766e', background: '#f0fdf4', padding: '3px 10px', borderRadius: 20, border: '1px solid #bbf7d0' }}>
-                      <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', animation: 'pulse 1s infinite' }} />
-                      NUEVO PEDIDO
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-
-                    {/* Info cliente */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
-                      <div style={{ width: 46, height: 46, borderRadius: 14, background: score <= 35 ? 'linear-gradient(135deg,#2EC4B6,#1D9E75)' : score <= 65 ? 'linear-gradient(135deg,#f59e0b,#d97706)' : 'linear-gradient(135deg,#ef4444,#dc2626)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#fff', flexShrink: 0 }}>
-                        {isCalling
-                          ? <div style={{ width: 18, height: 18, border: '2.5px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                          : initial
-                        }
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: '0 0 2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</p>
-                        <p style={{ fontSize: 12, color: '#94a3b8', margin: '0 0 6px' }}>{phone || '—'}</p>
-                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: callCfg.bg, color: callCfg.color, border: `1px solid ${callCfg.border}` }}>
-                            {callCfg.label}
-                          </span>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: statusOpt.bg, color: statusOpt.color, border: `1px solid ${statusOpt.border}` }}>
-                            {statusOpt.label}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Precio + score */}
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                      <p style={{ fontSize: 'clamp(18px,4vw,22px)', fontWeight: 800, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.5px' }}>
-                        {Number(order.total_price ?? 0).toFixed(2)}€
-                      </p>
-                      <div style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: scoreCfg.bg, color: scoreCfg.color, border: `1px solid ${scoreCfg.border}`, display: 'inline-block', marginBottom: 4 }}>
-                        {score} · {scoreCfg.label}
-                      </div>
-                      <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>#{order.order_number}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Expandido */}
-                {isExpanded && (
-                  <div style={{ borderTop: '1px solid #f8fafc', background: '#fafbff', padding: 'clamp(14px,3vw,20px)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-
-                    {/* Productos */}
-                    {items.length > 0 && (
-                      <div style={{ background: '#fff', borderRadius: 14, padding: '12px 14px', border: '1.5px solid #f1f5f9' }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>Productos</p>
-                        {items.map((item: any, idx: number) => (
-                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: idx > 0 ? '6px 0 0' : '0', borderTop: idx > 0 ? '1px solid #f8fafc' : 'none' }}>
-                            <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>{item.name} <span style={{ color: '#94a3b8' }}>×{item.quantity}</span></span>
-                            <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a' }}>{Number(item.price).toFixed(2)}€</span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Resumen + WhatsApp grid */}
-                    <div className="ped-expanded-grid" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-
-                      {/* Resumen llamada */}
-                      <div style={{ background: '#fff', borderRadius: 14, padding: '14px', border: '1.5px solid #f1f5f9' }}>
-                        <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>Resumen IA</p>
-                        <p style={{ fontSize: 13, color: summary ? '#374151' : '#94a3b8', lineHeight: 1.6, margin: 0, fontStyle: summary ? 'normal' : 'italic' }}>
-                          {summary ?? 'Sin resumen. La llamada aún no se ha realizado.'}
-                        </p>
-                        {(order.call_attempts ?? 0) > 0 && (
-                          <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8' }}>
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/></svg>
-                            {order.call_attempts} intento{order.call_attempts > 1 ? 's' : ''}
-                            {order.last_call_at && ` · ${new Date(order.last_call_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* WhatsApp */}
-                      <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '14px', border: '1.5px solid #bbf7d0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="#15803d"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm.001 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
-                            <p style={{ fontSize: 11, fontWeight: 700, color: '#15803d', margin: 0 }}>WhatsApp IA</p>
-                          </div>
-                          {!waMsg && (
-                            <button onClick={() => generateWhatsApp(order)} disabled={isLoadingWa} className="btn-action"
-                              style={{ fontSize: 11, fontWeight: 700, padding: '4px 10px', borderRadius: 20, border: '1.5px solid #22c55e', background: '#fff', color: '#15803d', cursor: 'pointer', fontFamily: F, opacity: isLoadingWa ? 0.6 : 1 }}>
-                              {isLoadingWa ? 'Generando...' : 'Generar'}
-                            </button>
-                          )}
-                        </div>
-                        {waMsg ? (
-                          <>
-                            <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.6, margin: '0 0 10px' }}>{waMsg}</p>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                              <button onClick={() => sendWhatsApp(order)} className="btn-action"
-                                style={{ padding: '9px', borderRadius: 10, border: 'none', background: '#22c55e', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, fontFamily: F }}>
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="#fff"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M11.999 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 11.999 0zm.001 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
-                                Enviar
-                              </button>
-                              <button onClick={() => generateWhatsApp(order)} disabled={isLoadingWa} className="btn-action"
-                                style={{ padding: '9px', borderRadius: 10, border: '1.5px solid #bbf7d0', background: '#fff', color: '#15803d', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: F, opacity: isLoadingWa ? 0.6 : 1 }}>
-                                {isLoadingWa ? '...' : 'Regenerar'}
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          !isLoadingWa && <p style={{ fontSize: 12, color: '#64748b', margin: 0, fontStyle: 'italic' }}>Genera un mensaje personalizado para WhatsApp</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Estado del pedido */}
-                    <div style={{ background: '#fff', borderRadius: 14, padding: '14px', border: '1.5px solid #f1f5f9' }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.07em', margin: '0 0 8px' }}>Estado del pedido</p>
-                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        {ORDER_STATUS_OPTIONS.map(s => (
-                          <button key={s.value} onClick={() => handleStatusChange(order.id, s.value)} className="btn-action"
-                            style={{ padding: '7px 12px', borderRadius: 20, border: `1.5px solid ${order.status === s.value ? s.border : '#f1f5f9'}`, background: order.status === s.value ? s.bg : '#fff', color: order.status === s.value ? s.color : '#94a3b8', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: F, opacity: savingStatus[order.id] ? 0.6 : 1 }}>
-                            {s.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Acciones */}
-                    <div className="ped-actions" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                      <button onClick={() => handleViewTranscript(order.id)} className="btn-action"
-                        style={{ padding: '12px', borderRadius: 14, border: '1.5px solid #f1f5f9', background: '#fff', color: '#64748b', fontSize: 13, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F }}>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        Transcripción
-                      </button>
-                      <button onClick={() => handleRetry(order.id)} disabled={isCalling} className="btn-action"
-                        style={{ padding: '12px', borderRadius: 14, border: '1.5px solid #bae6fd', background: '#f0f9ff', color: '#0284c7', fontSize: 13, fontWeight: 700, cursor: isCalling ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontFamily: F, opacity: isCalling ? 0.6 : 1 }}>
-                        {isCalling
-                          ? <div style={{ width: 14, height: 14, border: '2px solid rgba(2,132,199,0.3)', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                          : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0284c7" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07"/><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.68"/></svg>
-                        }
-                        {isCalling ? 'Llamando...' : 'Rellamar ahora'}
-                      </button>
-                    </div>
-
-                  </div>
-                )}
-
-                {/* Footer */}
-                <div onClick={() => setExpanded(isExpanded ? null : order.id)}
-                  style={{ padding: '10px clamp(14px,3vw,20px)', borderTop: '1px solid #f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', background: isExpanded ? '#fafbff' : '#fff' }}>
-                  <span style={{ fontSize: 11, color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    {new Date(order.created_at).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                    {order.next_call_at && ` · Próximo: ${new Date(order.next_call_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}`}
-                  </span>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">
-                    {isExpanded ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}
-                  </svg>
-                </div>
-
-              </div>
-            )
-          })}
-
+          {/* Order cards */}
+          {mounted && filtered.map((order, i) => (
+            <OrderCard
+              key={order.id}
+              order={order}
+              index={i}
+              isExpanded={expanded === order.id}
+              isNew={newOrderIds.has(order.id)}
+              waMsg={waMessages[order.id]}
+              isLoadingWa={!!loadingWa[order.id]}
+              isCalling={!!loadingCall[order.id]}
+              isSavingStatus={!!savingStatus[order.id]}
+              onToggle={handleToggle}
+              onGenerateWa={generateWhatsApp}
+              onSendWa={sendWhatsApp}
+              onRetry={handleRetry}
+              onStatusChange={handleStatusChange}
+              onTranscript={handleViewTranscript}
+            />
+          ))}
         </div>
       </div>
     </>
