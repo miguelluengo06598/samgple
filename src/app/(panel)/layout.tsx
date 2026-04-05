@@ -1,16 +1,14 @@
-import NavBottom from '@/components/ui/nav-bottom'
+   import NavBottom from '@/components/nav-bottom'
 
-export default function PanelLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <NavBottom />
-      <main>
-        {children}
-      </main>
-    </div>
-  )
-}
+   export default function RootLayout({ children }) {
+     return (
+       <html>
+         <body style={{ display: 'flex' }}>
+           <NavBottom />
+           <main style={{ flex: 1, minWidth: 0 }}>
+             {children}
+           </main>
+         </body>
+       </html>
+      )
+    }
