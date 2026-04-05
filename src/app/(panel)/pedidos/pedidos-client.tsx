@@ -601,6 +601,7 @@ const WhatsAppIcon = () => (
 
 // ─── Global styles (injected once) ───────────────────────────────────────────
 const GLOBAL_CSS = `
+  :root { --header-height: 0px; }
   @keyframes ped-spin    { to { transform: rotate(360deg); } }
   @keyframes ped-shimmer { 0%{background-position:300% 0} 100%{background-position:-300% 0} }
   @keyframes ped-fadein  { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
@@ -800,7 +801,7 @@ export default function PedidosClient({
           WebkitBackdropFilter: 'blur(12px)',
           padding: '14px clamp(16px,4vw,28px) 0',
           borderBottom: '1px solid #f1f5f9',
-          position: 'sticky', top: 56, zIndex: 9,
+          position: 'sticky', top: 'var(--header-height, 0px)', zIndex: 40,
         }}>
           <div style={{ maxWidth: 880, margin: '0 auto' }}>
 
