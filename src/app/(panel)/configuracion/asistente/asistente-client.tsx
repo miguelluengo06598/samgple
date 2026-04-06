@@ -1,150 +1,308 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
-import { createAdminClient } from '@/lib/supabase/admin'
+'use client'
 
-export async function GET() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+import { useState } from 'react'
+import Link from 'next/link'
 
-  const admin = createAdminClient()
-  const { data: accountUser } = await admin
-    .from('account_users').select('account_id').eq('user_id', user.id).single()
-  if (!accountUser) return NextResponse.json({ error: 'Sin cuenta' }, { status: 403 })
+const F = 'system-ui,-apple-system,sans-serif'
 
-  const { data } = await admin
-    .from('vapi_configs')
-    .select('vapi_phone_number_id, assistant_name, active, twilio_phone_number, twilio_account_sid')
-    .eq('account_id', accountUser.account_id)
-    .single()
+export default function AsistenteClient({ initialConfig }: { initialConfig: any }) {
+  const [config,   setConfig]   = useState(initialConfig)
+  const [saving,   setSaving]   = useState(false)
+  const [toggling, setToggling] = useState(false)
+  const [msg,      setMsg]      = useState('')
+  const [error,    setError]    = useState('')
 
-  return NextResponse.json({ config: data ?? null })
-}
+  const [assistantName, setAssistantName] = useState(config?.assistant_name      ?? '')
+  const [twilioSid,     setTwilioSid]     = useState(config?.twilio_account_sid  ?? '')
+  const [twilioToken,   setTwilioToken]   = useState(config?.twilio_auth_token   ?? '')
+  const [twilioPhone,   setTwilioPhone]   = useState(config?.twilio_phone_number ?? '')
+  const [showToken,     setShowToken]     = useState(false)
 
-export async function POST(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const isActive     = config?.active ?? false
+  const isConnected  = !!config?.vapi_phone_number_id
+  const isConfigured = isConnected && !!config?.assistant_name
 
-  const admin = createAdminClient()
-  const { data: accountUser } = await admin
-    .from('account_users').select('account_id').eq('user_id', user.id).single()
-  if (!accountUser) return NextResponse.json({ error: 'Sin cuenta' }, { status: 403 })
-
-  const { assistant_name, twilio_account_sid, twilio_auth_token, twilio_phone_number } = await request.json()
-
-  if (!assistant_name?.trim())
-    return NextResponse.json({ error: 'El nombre del asistente es obligatorio' }, { status: 400 })
-  if (!twilio_account_sid?.trim())
-    return NextResponse.json({ error: 'El Account SID de Twilio es obligatorio' }, { status: 400 })
-  if (!twilio_auth_token?.trim())
-    return NextResponse.json({ error: 'El Auth Token de Twilio es obligatorio' }, { status: 400 })
-  if (!twilio_phone_number?.trim())
-    return NextResponse.json({ error: 'El número de Twilio es obligatorio' }, { status: 400 })
-
-  // Comprobar si ya existe un phone number en VAPI para esta cuenta
-  // Si existe, lo eliminamos primero para evitar duplicados
-  const { data: existingConfig } = await admin
-    .from('vapi_configs')
-    .select('vapi_phone_number_id')
-    .eq('account_id', accountUser.account_id)
-    .single()
-
-  if (existingConfig?.vapi_phone_number_id) {
-    // Intentar eliminar el número anterior de VAPI (no crítico si falla)
-    await fetch(`https://api.vapi.ai/phone-number/${existingConfig.vapi_phone_number_id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${process.env.VAPI_API_KEY}` },
-    }).catch(() => null)
+  async function handleSave() {
+    setSaving(true); setMsg(''); setError('')
+    try {
+      const res = await fetch('/api/vapi/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_name:      assistantName,
+          twilio_account_sid:  twilioSid,
+          twilio_auth_token:   twilioToken,
+          twilio_phone_number: twilioPhone,
+        }),
+      })
+      const data = await res.json()
+      if (data.ok) {
+        setConfig(data.config)
+        setMsg('¡Twilio conectado correctamente!')
+        setTimeout(() => setMsg(''), 4000)
+      } else {
+        setError(data.error)
+      }
+    } finally { setSaving(false) }
   }
 
-  // Importar número en VAPI
-  const vapiRes = await fetch('https://api.vapi.ai/phone-number', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.VAPI_API_KEY}`,
-      'Content-Type':  'application/json',
-    },
-    body: JSON.stringify({
-      provider:         'twilio',
-      number:           twilio_phone_number.trim(),
-      twilioAccountSid: twilio_account_sid.trim(),
-      twilioAuthToken:  twilio_auth_token.trim(),
-    }),
-  })
-
-  if (!vapiRes.ok) {
-    const err = await vapiRes.json().catch(() => ({}))
-    const msg = (err as any)?.message ?? 'Error conectando con Twilio en VAPI'
-    return NextResponse.json({ error: msg }, { status: 400 })
+  async function handleToggle() {
+    setToggling(true); setError('')
+    try {
+      const res  = await fetch('/api/vapi/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !isActive }),
+      })
+      const data = await res.json()
+      if (data.ok) setConfig((prev: any) => ({ ...prev, active: !isActive }))
+      else setError(data.error)
+    } finally { setToggling(false) }
   }
 
-  const vapiPhone = await vapiRes.json()
-  const vapi_phone_number_id = vapiPhone.id
+  return (
+    <>
+      <style>{`
+        @keyframes fadeUp  { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.35} }
+        @keyframes spin    { to{transform:rotate(360deg)} }
+        @keyframes breathe { 0%,100%{transform:scale(1)} 50%{transform:scale(1.04)} }
+        .inp-wrap { transition:border-color .15s,box-shadow .15s; }
+        .inp-wrap:focus-within { border-color:#2EC4B6!important; box-shadow:0 0 0 3px rgba(46,196,182,.1)!important; }
+        .btn-save { transition:all .15s ease; background:linear-gradient(135deg,#2EC4B6,#1D9E75); }
+        .btn-save:not(:disabled):hover { transform:translateY(-1px); box-shadow:0 10px 28px rgba(46,196,182,.35)!important; }
+        .btn-save:not(:disabled):active { transform:scale(.98); }
+        .toggle-btn { transition:all .15s ease; }
+        .toggle-btn:not(:disabled):hover { opacity:.85; transform:translateY(-1px); }
+        .step-card { transition:background .12s,transform .12s; }
+        .step-card:hover { background:#f0fdf4; transform:translateX(3px); }
+        .status-ring { animation: breathe 3s ease-in-out infinite; }
+        .show-token-btn { transition:opacity .15s; }
+        .show-token-btn:hover { opacity:.7; }
+      `}</style>
 
-  if (!vapi_phone_number_id) {
-    return NextResponse.json({ error: 'VAPI no devolvió Phone Number ID' }, { status: 502 })
-  }
+      <div style={{ background:'#f8fafc', minHeight:'100vh', fontFamily:F }}>
 
-  // Guardar en vapi_configs
-  const { data, error } = await admin
-    .from('vapi_configs')
-    .upsert({
-      account_id:           accountUser.account_id,
-      vapi_phone_number_id,
-      assistant_name:       assistant_name.trim(),
-      twilio_account_sid:   twilio_account_sid.trim(),
-      twilio_auth_token:    twilio_auth_token.trim(),
-      twilio_phone_number:  twilio_phone_number.trim(),
-      updated_at:           new Date().toISOString(),
-    }, { onConflict: 'account_id' })
-    .select('vapi_phone_number_id, assistant_name, active, twilio_phone_number, twilio_account_sid')
-    .single()
+        {/* Header */}
+        <div style={{ background:'#fff', padding:'16px clamp(16px,4vw,32px)', borderBottom:'1px solid #f1f5f9', position:'sticky', top:56, zIndex:9 }}>
+          <div style={{ maxWidth:660, margin:'0 auto', display:'flex', alignItems:'center', gap:12 }}>
+            <Link href="/configuracion" style={{ width:36, height:36, borderRadius:11, background:'#f8fafc', border:'1.5px solid #f1f5f9', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, textDecoration:'none' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
+            </Link>
+            <div>
+              <h1 style={{ fontSize:'clamp(17px,3.5vw,21px)', fontWeight:800, color:'#0f172a', margin:0, letterSpacing:'-.4px' }}>Asistente IA</h1>
+              <p style={{ fontSize:12, color:'#94a3b8', margin:0 }}>Agente de llamadas automáticas COD</p>
+            </div>
+          </div>
+        </div>
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ ok: true, config: data })
-}
+        <div style={{ maxWidth:660, margin:'0 auto', padding:'clamp(16px,3vw,24px) clamp(16px,4vw,32px) 48px', display:'flex', flexDirection:'column', gap:12 }}>
 
-export async function PATCH(request: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+          {/* Hero */}
+          <div style={{
+            borderRadius:24, padding:'clamp(20px,4vw,28px)',
+            border: isActive ? 'none' : '1.5px solid #f1f5f9',
+            background: isActive ? 'linear-gradient(135deg,#0c1a2e 0%,#0f2a1e 100%)' : '#fff',
+            boxShadow: isActive ? '0 12px 40px rgba(15,23,42,.25)' : '0 2px 12px rgba(0,0,0,.04)',
+            animation:'fadeUp .22s ease both', position:'relative', overflow:'hidden',
+          }}>
+            {isActive && <>
+              <div style={{ position:'absolute', top:-50, right:-50, width:200, height:200, borderRadius:'50%', background:'radial-gradient(circle,rgba(46,196,182,.18) 0%,transparent 70%)', pointerEvents:'none' }}/>
+              <div style={{ position:'absolute', bottom:-40, left:-40, width:160, height:160, borderRadius:'50%', background:'radial-gradient(circle,rgba(29,158,117,.12) 0%,transparent 70%)', pointerEvents:'none' }}/>
+              <div style={{ position:'absolute', inset:0, backgroundImage:'radial-gradient(rgba(255,255,255,.04) 1px,transparent 1px)', backgroundSize:'24px 24px', pointerEvents:'none' }}/>
+            </>}
 
-  const admin = createAdminClient()
-  const { data: accountUser } = await admin
-    .from('account_users').select('account_id').eq('user_id', user.id).single()
-  if (!accountUser) return NextResponse.json({ error: 'Sin cuenta' }, { status: 403 })
+            <div style={{ position:'relative', display:'flex', alignItems:'center', justifyContent:'space-between', gap:12 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+                <div className={isActive ? 'status-ring' : ''} style={{
+                  width:52, height:52, borderRadius:16, flexShrink:0,
+                  background: isActive ? 'linear-gradient(135deg,#2EC4B6,#1D9E75)' : '#f1f5f9',
+                  display:'flex', alignItems:'center', justifyContent:'center',
+                  boxShadow: isActive ? '0 4px 20px rgba(46,196,182,.4)' : 'none',
+                }}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isActive ? '#fff' : '#94a3b8'} strokeWidth="2" strokeLinecap="round">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+                  </svg>
+                </div>
+                <div>
+                  <p style={{ fontSize:16, fontWeight:800, color: isActive ? '#fff' : '#0f172a', margin:'0 0 5px', letterSpacing:'-.3px' }}>
+                    {assistantName || 'Sin nombre'}
+                  </p>
+                  <div style={{ display:'flex', alignItems:'center', gap:7 }}>
+                    <span style={{ width:7, height:7, borderRadius:'50%', background: isActive ? '#22c55e' : '#cbd5e1', display:'inline-block', animation: isActive ? 'pulse 2s infinite' : 'none' }}/>
+                    <span style={{ fontSize:12, fontWeight:600, color: isActive ? '#86efac' : '#94a3b8' }}>
+                      {isActive ? 'Activo · Confirmando pedidos' : 'Inactivo'}
+                    </span>
+                  </div>
+                </div>
+              </div>
 
-  const { active } = await request.json()
-  if (typeof active !== 'boolean') {
-    return NextResponse.json({ error: 'Campo active inválido' }, { status: 400 })
-  }
+              <button onClick={handleToggle} disabled={toggling || (!isConfigured && !isActive)} className="toggle-btn"
+                style={{
+                  padding:'10px 18px', borderRadius:13, fontSize:13, fontWeight:800, fontFamily:F,
+                  cursor: (!isConfigured && !isActive) ? 'not-allowed' : 'pointer',
+                  opacity: (!isConfigured && !isActive) ? .4 : 1,
+                  flexShrink:0, display:'flex', alignItems:'center', gap:6,
+                  border: isActive ? '1.5px solid rgba(252,165,165,.25)' : '1.5px solid #2EC4B6',
+                  background: isActive ? 'rgba(220,38,38,.08)' : 'rgba(46,196,182,.06)',
+                  color: isActive ? '#fca5a5' : '#0f766e',
+                }}>
+                {toggling
+                  ? <div style={{ width:12, height:12, border:`2px solid ${isActive ? 'rgba(252,165,165,.3)' : 'rgba(46,196,182,.3)'}`, borderTopColor: isActive ? '#fca5a5' : '#0f766e', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>
+                  : <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                      {isActive ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></>}
+                    </svg>
+                }
+                {toggling ? '...' : isActive ? 'Desactivar' : 'Activar'}
+              </button>
+            </div>
 
-  if (active) {
-    const { data: config } = await admin
-      .from('vapi_configs')
-      .select('vapi_phone_number_id, assistant_name')
-      .eq('account_id', accountUser.account_id)
-      .single()
+            {isActive && (
+              <div style={{ position:'relative', marginTop:18, display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+                {[
+                  { label:'Número', value: config?.twilio_phone_number ?? '—', ok: isConnected },
+                  { label:'Asistente', value: assistantName || '—', ok: !!assistantName },
+                ].map(item => (
+                  <div key={item.label} style={{ padding:'10px 14px', background:'rgba(255,255,255,.06)', borderRadius:12, border:'1px solid rgba(255,255,255,.08)' }}>
+                    <p style={{ fontSize:10, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.07em', margin:'0 0 3px', fontWeight:700 }}>{item.label}</p>
+                    <p style={{ fontSize:13, color: item.ok ? 'rgba(255,255,255,.8)' : 'rgba(255,255,255,.35)', margin:0, fontWeight:600 }}>{item.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
-    if (!config?.vapi_phone_number_id?.trim()) {
-      return NextResponse.json(
-        { error: 'Conecta tu número de Twilio antes de activar' },
-        { status: 400 }
-      )
-    }
-    if (!config?.assistant_name?.trim()) {
-      return NextResponse.json(
-        { error: 'Añade el nombre del asistente antes de activar' },
-        { status: 400 }
-      )
-    }
-  }
+          {/* Warning */}
+          {!isConfigured && (
+            <div style={{ background:'#fffbeb', borderRadius:16, padding:'13px 16px', border:'1.5px solid #fde68a', display:'flex', alignItems:'center', gap:10, animation:'fadeUp .2s ease .05s both' }}>
+              <div style={{ width:30, height:30, borderRadius:9, background:'#fef3c7', border:'1px solid #fde68a', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="2" strokeLinecap="round">
+                  <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                  <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+                </svg>
+              </div>
+              <p style={{ fontSize:13, color:'#92400e', margin:0, fontWeight:600 }}>Conecta tu número de Twilio para activar las llamadas automáticas</p>
+            </div>
+          )}
 
-  await admin
-    .from('vapi_configs')
-    .update({ active, updated_at: new Date().toISOString() })
-    .eq('account_id', accountUser.account_id)
+          {/* Nombre */}
+          <div style={{ background:'#fff', borderRadius:22, padding:'clamp(18px,3vw,24px)', border:'1.5px solid #f1f5f9', boxShadow:'0 2px 12px rgba(0,0,0,.04)', animation:'fadeUp .2s ease .08s both' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+              <div style={{ width:36, height:36, borderRadius:11, background:'#f0fdf4', border:'1.5px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </div>
+              <div>
+                <p style={{ fontSize:14, fontWeight:800, color:'#0f172a', margin:0 }}>Nombre del asistente</p>
+                <p style={{ fontSize:12, color:'#94a3b8', margin:0 }}>Cómo se presentará al llamar al cliente</p>
+              </div>
+            </div>
+            <label style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:7, display:'block' }}>Nombre (femenino)</label>
+            <div className="inp-wrap" style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 16px', background:'#f8fafc', border:'1.5px solid #f1f5f9', borderRadius:13 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" style={{ flexShrink:0 }}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              <input style={{ border:'none', background:'transparent', fontSize:14, color:'#0f172a', outline:'none', flex:1, minWidth:0, fontFamily:F, fontWeight:500 }} placeholder="Sara, Luna, Mia, Noa..." value={assistantName} onChange={e => setAssistantName(e.target.value)} />
+              {assistantName && <div style={{ width:20, height:20, borderRadius:'50%', background:'#f0fdf4', border:'1px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+            </div>
+            <p style={{ fontSize:12, color:'#94a3b8', margin:'10px 0 0', lineHeight:1.5 }}>El nombre que el asistente usa al presentarse. El nombre de tu empresa se toma automáticamente de cada tienda.</p>
+          </div>
 
-  return NextResponse.json({ ok: true })
+          {/* Twilio */}
+          <div style={{ background:'#fff', borderRadius:22, padding:'clamp(18px,3vw,24px)', border:'1.5px solid #f1f5f9', boxShadow:'0 2px 12px rgba(0,0,0,.04)', animation:'fadeUp .2s ease .13s both' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:16 }}>
+              <div style={{ width:36, height:36, borderRadius:11, background:'#faf5ff', border:'1.5px solid #e9d5ff', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+              </div>
+              <div style={{ flex:1 }}>
+                <p style={{ fontSize:14, fontWeight:800, color:'#0f172a', margin:0 }}>Número de teléfono</p>
+                <p style={{ fontSize:12, color:'#94a3b8', margin:0 }}>{isConnected ? `Conectado: ${config?.twilio_phone_number}` : 'Conecta tu número de Twilio'}</p>
+              </div>
+              {isConnected && <div style={{ padding:'4px 10px', borderRadius:8, background:'#f0fdf4', border:'1px solid #bbf7d0', flexShrink:0 }}><span style={{ fontSize:11, fontWeight:700, color:'#15803d' }}>✓ Conectado</span></div>}
+            </div>
+
+            <label style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:7, display:'block' }}>Account SID</label>
+            <div className="inp-wrap" style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 16px', background:'#f8fafc', border:'1.5px solid #f1f5f9', borderRadius:13, marginBottom:10 }}>
+              <input style={{ border:'none', background:'transparent', fontSize:13, color:'#0f172a', outline:'none', flex:1, minWidth:0, fontFamily:'monospace', fontWeight:500 }} placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" value={twilioSid} onChange={e => setTwilioSid(e.target.value)} />
+              {twilioSid && <div style={{ width:20, height:20, borderRadius:'50%', background:'#f0fdf4', border:'1px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+            </div>
+
+            <label style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:7, display:'block' }}>Auth Token</label>
+            <div className="inp-wrap" style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 16px', background:'#f8fafc', border:'1.5px solid #f1f5f9', borderRadius:13, marginBottom:10 }}>
+              <input type={showToken ? 'text' : 'password'} style={{ border:'none', background:'transparent', fontSize:13, color:'#0f172a', outline:'none', flex:1, minWidth:0, fontFamily:'monospace', fontWeight:500 }} placeholder="································" value={twilioToken} onChange={e => setTwilioToken(e.target.value)} />
+              <button onClick={() => setShowToken(v => !v)} className="show-token-btn" style={{ border:'none', background:'transparent', cursor:'pointer', padding:0, display:'flex', alignItems:'center', flexShrink:0 }}>
+                {showToken
+                  ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                  : <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+
+            <label style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.07em', marginBottom:7, display:'block' }}>Número de teléfono</label>
+            <div className="inp-wrap" style={{ display:'flex', alignItems:'center', gap:10, padding:'13px 16px', background:'#f8fafc', border:'1.5px solid #f1f5f9', borderRadius:13 }}>
+              <input style={{ border:'none', background:'transparent', fontSize:14, color:'#0f172a', outline:'none', flex:1, minWidth:0, fontFamily:F, fontWeight:500 }} placeholder="+16625164718" value={twilioPhone} onChange={e => setTwilioPhone(e.target.value)} />
+              {twilioPhone && <div style={{ width:20, height:20, borderRadius:'50%', background:'#f0fdf4', border:'1px solid #bbf7d0', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#0f766e" strokeWidth="3" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg></div>}
+            </div>
+          </div>
+
+          {/* Pasos */}
+          <div style={{ background:'#fff', borderRadius:22, padding:'clamp(16px,3vw,22px)', border:'1.5px solid #f1f5f9', boxShadow:'0 2px 12px rgba(0,0,0,.04)', animation:'fadeUp .2s ease .18s both' }}>
+            <p style={{ fontSize:11, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.08em', margin:'0 0 14px' }}>Cómo obtener tus credenciales de Twilio</p>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {[
+                { n:'1', title:'Crea cuenta en Twilio', desc:'twilio.com → compra un número de teléfono', color:'#0284c7', bg:'#f0f9ff', border:'#bae6fd' },
+                { n:'2', title:'Copia tus credenciales', desc:'En el dashboard de Twilio: Account SID y Auth Token', color:'#8b5cf6', bg:'#faf5ff', border:'#e9d5ff' },
+                { n:'3', title:'Pega y conecta', desc:'Rellena los campos de arriba y pulsa Conectar', color:'#0f766e', bg:'#f0fdf4', border:'#bbf7d0' },
+              ].map((s, i) => (
+                <div key={s.n} className="step-card" style={{ display:'flex', gap:12, padding:'9px 10px', borderRadius:12, marginBottom: i < 2 ? 2 : 0 }}>
+                  <div style={{ width:28, height:28, borderRadius:9, background:s.bg, border:`1.5px solid ${s.border}`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                    <span style={{ fontSize:12, fontWeight:800, color:s.color }}>{s.n}</span>
+                  </div>
+                  <div style={{ paddingTop:3 }}>
+                    <p style={{ fontSize:13, fontWeight:700, color:'#0f172a', margin:'0 0 2px' }}>{s.title}</p>
+                    <p style={{ fontSize:12, color:'#94a3b8', margin:0 }}>{s.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Feedback */}
+          {error && (
+            <div style={{ background:'#fef2f2', border:'1.5px solid #fecaca', borderRadius:14, padding:'12px 16px', display:'flex', alignItems:'center', gap:10, animation:'fadeUp .18s ease both' }}>
+              <div style={{ width:28, height:28, borderRadius:9, background:'#fee2e2', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              </div>
+              <p style={{ fontSize:13, color:'#dc2626', margin:0, fontWeight:600 }}>{error}</p>
+            </div>
+          )}
+
+          {msg && (
+            <div style={{ background:'#f0fdf4', border:'1.5px solid #bbf7d0', borderRadius:14, padding:'12px 16px', display:'flex', alignItems:'center', gap:10, animation:'fadeUp .18s ease both' }}>
+              <div style={{ width:28, height:28, borderRadius:9, background:'#dcfce7', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <p style={{ fontSize:13, color:'#15803d', margin:0, fontWeight:600 }}>{msg}</p>
+            </div>
+          )}
+
+          {/* Botón */}
+          <button onClick={handleSave} disabled={saving} className="btn-save"
+            style={{
+              width:'100%', padding:'15px', borderRadius:16, border:'none',
+              color: saving ? '#94a3b8' : '#fff',
+              background: saving ? '#f1f5f9' : undefined,
+              cursor: saving ? 'not-allowed' : 'pointer',
+              fontSize:15, fontWeight:800, fontFamily:F,
+              display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+              boxShadow: saving ? 'none' : '0 4px 20px rgba(46,196,182,.28)',
+              animation:'fadeUp .2s ease .23s both',
+            }}>
+            {saving
+              ? <><div style={{ width:16, height:16, border:'2px solid #e2e8f0', borderTopColor:'#94a3b8', borderRadius:'50%', animation:'spin .8s linear infinite' }}/>Conectando con Twilio...</>
+              : <><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>{isConnected ? 'Actualizar conexión' : 'Conectar Twilio'}</>
+            }
+          </button>
+
+        </div>
+      </div>
+    </>
+  )
 }
