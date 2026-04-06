@@ -88,7 +88,7 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
     ? `${decrypt(order.shipping_address.address1) ?? ''}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
     : 'tu dirección'
 
-  const vapiRes = await fetch('https://api.vapi.ai/call', {
+  const vapiRes = await fetch('https://api.vapi.ai/call/phone', {
     method: 'POST',
     headers: {
       'Content-Type':  'application/json',
