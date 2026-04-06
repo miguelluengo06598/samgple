@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeOrder } from './order-analysis'
+import { updateCustomerRiskScore } from './customer-risk'
 import {
   encryptCustomer,
   encryptDet,
@@ -31,7 +32,6 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     const email = c.email ?? null
     const shopifyCustomerId = c.id ? String(c.id) : null
 
-    // Buscar cliente existente — comparamos contra valores encriptados deterministas
     let existingCustomer = null
 
     if (shopifyCustomerId) {
@@ -49,7 +49,7 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
         .from('customers')
         .select('id')
         .eq('account_id', accountId)
-        .eq('phone', encryptDet(phone))   // ← buscar por valor encriptado determinista
+        .eq('phone', encryptDet(phone))
         .single()
       existingCustomer = data
     }
@@ -59,12 +59,11 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
         .from('customers')
         .select('id')
         .eq('account_id', accountId)
-        .eq('email', encryptDet(email))   // ← ídem
+        .eq('email', encryptDet(email))
         .single()
       existingCustomer = data
     }
 
-    // Encriptar campos sensibles antes de guardar
     const encryptedFields = encryptCustomer({
       first_name: c.first_name ?? null,
       last_name:  c.last_name  ?? null,
@@ -143,13 +142,11 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     ?? rawAddress?.phone
     ?? null
 
-  // Encriptar campos sensibles de la dirección
   const shippingAddress = rawAddress ? {
     ...rawAddress,
     address1: encrypt(rawAddress.address1),
     address2: encrypt(rawAddress.address2),
     phone:    encryptDet(rawAddress.phone),
-    // city, province, country, zip → texto plano (no sensibles)
   } : null
 
   const { data: order, error: orderError } = await supabase
@@ -163,7 +160,7 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
       total_price:       parseFloat(payload.total_price ?? '0'),
       currency:          payload.currency ?? 'EUR',
       shipping_address:  shippingAddress,
-      phone:             encryptDet(phone),   // ← encriptado determinista
+      phone:             encryptDet(phone),
       notes:             payload.note ?? null,
       raw_payload:       payload,
     }, { onConflict: 'account_id,external_order_id' })
@@ -203,6 +200,13 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
   analyzeOrder(order.id).catch(err => {
     console.error(`Error analizando pedido ${order.id}:`, err)
   })
+
+  // 8. Actualizar score de riesgo del cliente (sin await — no bloquea)
+  if (customerId) {
+    updateCustomerRiskScore(customerId).catch(err => {
+      console.error(`Error actualizando risk score cliente ${customerId}:`, err)
+    })
+  }
 
   return { orderId: order.id, accountId }
 }
