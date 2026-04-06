@@ -82,7 +82,7 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
   const customerName      = customerFirstName || 'Cliente'
   const storeName         = order.stores?.name ?? 'nuestra tienda'
   const orderItems        = order.order_items?.map((i: any) => i.name).join(', ') ?? 'tu pedido'
-  const orderAmount       = String(order.total_price ?? 0)
+  const orderAmount = Number(order.total_price ?? 0).toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' euros'
   const orderNumber       = String(order.order_number ?? order.id.slice(0, 8))
   const orderAddress      = order.shipping_address?.address1
     ? `${decrypt(order.shipping_address.address1) ?? ''}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
