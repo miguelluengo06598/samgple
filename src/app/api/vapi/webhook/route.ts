@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { deductBalance } from '@/services/wallet'
 import crypto from 'crypto'
+export const runtime = 'nodejs'
 
 const CALL_COST_PER_MIN = 0.22
 const CALL_COST_FAILED  = 0.05
@@ -20,32 +21,44 @@ function verifyWebhook(body: string, signature: string): boolean {
 }
 
 function getCallStatus(endedReason: string, transcript: string): string {
-  const r = (endedReason ?? '').toLowerCase()
+  const r = (endedReason ?? '').toLowerCase().replace(/-/g, '').replace(/_/g, '')
   const t = (transcript ?? '').toLowerCase()
 
+  // Sin respuesta / error
   if (
-    r.includes('customer-did-not-answer') ||
-    r.includes('no-answer') ||
-    r.includes('not-answered') ||
+    r.includes('customerdidnotanswer') ||
+    r.includes('noanswer') ||
+    r.includes('notanswered') ||
     r.includes('error') ||
     r.includes('failed') ||
-    r.includes('busy')
+    r.includes('busy') ||
+    r.includes('timeout')
   ) return 'no_answer'
 
+  // Buzón de voz
   if (r.includes('voicemail') || r.includes('machine')) return 'voicemail'
 
+  // Número incorrecto
   if (
-    r.includes('invalid-number') ||
-    r.includes('wrong-number') ||
-    r.includes('number-not-in-service') ||
+    r.includes('invalidnumber') ||
+    r.includes('wrongnumber') ||
+    r.includes('numbernotinservice') ||
     r.includes('unallocated')
   ) return 'wrong_number'
 
-  if (r.includes('customer-ended-call') || r.includes('completed')) {
+  // Llamada completada — analizar transcripción
+  if (
+    r.includes('customerendedcall') ||
+    r.includes('completed') ||
+    r.includes('assistantendedcall') ||
+    r.includes('hangup')
+  ) {
     const cancelPhrases = [
       'no lo quiero', 'no me interesa', 'quiero cancelar',
       'cancela el pedido', 'cancelar el pedido',
       'no quiero el pedido', 'quiero devolverlo', 'quiero anularlo',
+      'no lo quiero', 'no quiero', 'canceladlo', 'cancelalo',
+      'devuélvelo', 'devolvérselo', 'anularlo', 'anúlalo',
     ]
     const confirmPhrases = [
       'sí, confirmo', 'si, confirmo', 'lo confirmo',
@@ -53,6 +66,9 @@ function getCallStatus(endedReason: string, transcript: string): string {
       'de acuerdo', 'perfecto', 'adelante',
       'sí, es correcto', 'si, es correcto',
       'correcto', 'exacto', 'claro que sí', 'claro que si',
+      'vale', 'venga', 'ok', 'bueno', 'sí', 'si',
+      'confirmado', 'confirmamos', 'lo confirmamos',
+      'genial', 'estupendo', 'por supuesto', 'claro',
     ]
 
     if (cancelPhrases.some(p => t.includes(p)))  return 'cancelled'
@@ -120,7 +136,6 @@ export async function POST(request: NextRequest) {
 
     const callStatus = getCallStatus(endedReason, transcript)
 
-    // Coste con mínimo y techo
     let cost: number
     if (durationSecs < MIN_DURATION_SECS) {
       cost = CALL_COST_FAILED
@@ -155,8 +170,8 @@ export async function POST(request: NextRequest) {
       last_call_at: call.endedAt ?? new Date().toISOString(),
     }
 
-    if (callStatus === 'confirmed')  orderUpdates.status = 'confirmado'
-    if (callStatus === 'cancelled')  orderUpdates.status = 'cancelado'
+    if (callStatus === 'confirmed') orderUpdates.status = 'confirmado'
+    if (callStatus === 'cancelled') orderUpdates.status = 'cancelado'
     if (callStatus === 'no_answer' || callStatus === 'voicemail') {
       orderUpdates.next_call_at = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
     }
