@@ -21,7 +21,7 @@ interface Order {
   order_risk_analyses?: Array<{ risk_score: number; summary: string }>
 }
 
-// ─── Static config (hoisted — no re-creation on render) ───────────────────────
+// ─── Static config ────────────────────────────────────────────────────────────
 const CALL_STATUS_CONFIG: Record<string, {
   label: string; color: string; bg: string; dot: string
 }> = {
@@ -52,11 +52,11 @@ const FILTERS = [
   { key: 'cancelled', label: 'Cancelados' },
 ]
 
-// ─── Helpers (pure, no closures) ──────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function scoreConfig(score: number) {
-  if (score <= 35) return { label: 'Bajo riesgo',   color: '#16a34a', bar: '#22c55e', width: score }
-  if (score <= 65) return { label: 'Riesgo medio',  color: '#d97706', bar: '#f59e0b', width: score }
-  return               { label: 'Alto riesgo',   color: '#dc2626', bar: '#ef4444', width: score }
+  if (score <= 35) return { label: 'Bajo riesgo',  color: '#16a34a', bar: '#22c55e', width: score }
+  if (score <= 65) return { label: 'Riesgo medio', color: '#d97706', bar: '#f59e0b', width: score }
+  return               { label: 'Alto riesgo',  color: '#dc2626', bar: '#ef4444', width: score }
 }
 
 function fmt(d: string) {
@@ -67,32 +67,24 @@ function fmt(d: string) {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 const Skeleton = memo(function Skeleton({
-  w = '100%', h = 12, r = 6, opacity = 1,
-}: { w?: string | number; h?: number; r?: number; opacity?: number }) {
+  w = '100%', h = 12, r = 6,
+}: { w?: string | number; h?: number; r?: number }) {
   return (
-    <div
-      style={{
-        width: w, height: h, borderRadius: r, opacity,
-        background: 'linear-gradient(90deg,#f1f5f9 25%,#e9edf2 50%,#f1f5f9 75%)',
-        backgroundSize: '300% 100%',
-        animation: 'ped-shimmer 1.5s ease-in-out infinite',
-      }}
-    />
+    <div style={{
+      width: w, height: h, borderRadius: r,
+      background: 'linear-gradient(90deg,#f1f5f9 25%,#e9edf2 50%,#f1f5f9 75%)',
+      backgroundSize: '300% 100%',
+      animation: 'ped-shimmer 1.5s ease-in-out infinite',
+    }} />
   )
 })
 
-// ─── Skeleton card — structurally mirrors OrderCard ──────────────────────────
 const SkeletonCard = memo(function SkeletonCard({ delay = 0 }: { delay?: number }) {
   return (
-    <div
-      style={{
-        background: '#fff',
-        borderRadius: 16,
-        border: '1px solid #f1f5f9',
-        padding: '18px 20px',
-        animation: `ped-fadein 0.25s ease ${delay}s both`,
-      }}
-    >
+    <div style={{
+      background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9',
+      padding: '18px 20px', animation: `ped-fadein 0.25s ease ${delay}s both`,
+    }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Skeleton w={44} h={44} r={12} />
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -112,37 +104,28 @@ const SkeletonCard = memo(function SkeletonCard({ delay = 0 }: { delay?: number 
   )
 })
 
-// ─── Status pill ──────────────────────────────────────────────────────────────
+// ─── Pill ─────────────────────────────────────────────────────────────────────
 const Pill = memo(function Pill({
   label, color, bg, dot,
 }: { label: string; color: string; bg: string; dot?: string }) {
   return (
-    <span
-      style={{
-        display: 'inline-flex', alignItems: 'center', gap: 5,
-        fontSize: 11, fontWeight: 600, padding: '3px 9px',
-        borderRadius: 20, background: bg, color,
-      }}
-    >
-      {dot && (
-        <span style={{
-          width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0,
-        }} />
-      )}
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 11, fontWeight: 600, padding: '3px 9px',
+      borderRadius: 20, background: bg, color,
+    }}>
+      {dot && <span style={{ width: 5, height: 5, borderRadius: '50%', background: dot, flexShrink: 0 }} />}
       {label}
     </span>
   )
 })
 
-// ─── Risk bar ─────────────────────────────────────────────────────────────────
+// ─── RiskBar ──────────────────────────────────────────────────────────────────
 const RiskBar = memo(function RiskBar({ score }: { score: number }) {
   const cfg = scoreConfig(score)
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{
-        flex: 1, height: 4, borderRadius: 4,
-        background: '#f1f5f9', overflow: 'hidden',
-      }}>
+      <div style={{ flex: 1, height: 4, borderRadius: 4, background: '#f1f5f9', overflow: 'hidden' }}>
         <div style={{
           height: '100%', width: `${cfg.width}%`,
           background: cfg.bar, borderRadius: 4,
@@ -156,7 +139,7 @@ const RiskBar = memo(function RiskBar({ score }: { score: number }) {
   )
 })
 
-// ─── Transcript modal ─────────────────────────────────────────────────────────
+// ─── TranscriptModal ──────────────────────────────────────────────────────────
 const TranscriptModal = memo(function TranscriptModal({
   data, onClose,
 }: { data: { transcript?: string; summary?: string; duration_seconds?: number } | null; onClose: () => void }) {
@@ -165,8 +148,7 @@ const TranscriptModal = memo(function TranscriptModal({
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 999,
-        background: 'rgba(15,23,42,0.45)',
-        backdropFilter: 'blur(6px)',
+        background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
         animation: 'ped-fadein 0.15s ease',
       }}
@@ -174,20 +156,14 @@ const TranscriptModal = memo(function TranscriptModal({
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#fff',
-          borderRadius: '20px 20px 0 0',
+          background: '#fff', borderRadius: '20px 20px 0 0',
           padding: '24px 24px 40px',
           width: '100%', maxWidth: 580,
           maxHeight: '72vh', overflowY: 'auto',
           animation: 'ped-slideup 0.22s cubic-bezier(0.22,1,0.36,1)',
         }}
       >
-        {/* handle */}
-        <div style={{
-          width: 36, height: 4, borderRadius: 4,
-          background: '#e2e8f0', margin: '0 auto 20px',
-        }} />
-
+        <div style={{ width: 36, height: 4, borderRadius: 4, background: '#e2e8f0', margin: '0 auto 20px' }} />
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <span style={{ fontSize: 15, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.3px' }}>
             Transcripción de llamada
@@ -205,7 +181,6 @@ const TranscriptModal = memo(function TranscriptModal({
             </svg>
           </button>
         </div>
-
         {data ? (
           <>
             {data.duration_seconds && (
@@ -214,11 +189,7 @@ const TranscriptModal = memo(function TranscriptModal({
               </div>
             )}
             {data.summary && (
-              <div style={{
-                background: '#f0fdf4', borderRadius: 12,
-                padding: '12px 14px', marginBottom: 14,
-                border: '1px solid #bbf7d0',
-              }}>
+              <div style={{ background: '#f0fdf4', borderRadius: 12, padding: '12px 14px', marginBottom: 14, border: '1px solid #bbf7d0' }}>
                 <p style={{ fontSize: 10, fontWeight: 700, color: '#15803d', margin: '0 0 5px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Resumen IA</p>
                 <p style={{ fontSize: 13, color: '#374151', margin: 0, lineHeight: 1.65 }}>{data.summary}</p>
               </div>
@@ -237,7 +208,7 @@ const TranscriptModal = memo(function TranscriptModal({
   )
 })
 
-// ─── OrderCard — memoized to prevent re-renders when sibling orders update ────
+// ─── OrderCard ────────────────────────────────────────────────────────────────
 interface CardProps {
   order: Order
   isExpanded: boolean
@@ -249,7 +220,8 @@ interface CardProps {
   onToggle: (id: string) => void
   onGenerateWa: (order: Order) => void
   onSendWa: (order: Order) => void
-  onRetry: (id: string) => void
+  onCall: (id: string) => void       // primera llamada → /api/vapi/call
+  onRetry: (id: string) => void      // reintento → /api/vapi/retry
   onStatusChange: (id: string, status: string) => void
   onTranscript: (id: string) => void
   index: number
@@ -259,23 +231,37 @@ const OrderCard = memo(function OrderCard({
   order, isExpanded, isNew, waMsg,
   isLoadingWa, isCalling, isSavingStatus,
   onToggle, onGenerateWa, onSendWa,
-  onRetry, onStatusChange, onTranscript, index,
+  onCall, onRetry, onStatusChange, onTranscript, index,
 }: CardProps) {
-  const callCfg    = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
-  const score      = order.order_risk_analyses?.[0]?.risk_score ?? 50
-  const summary    = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
-  const name       = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
-  const initial    = name.charAt(0).toUpperCase()
-  const phone      = order.customers?.phone ?? order.phone ?? ''
-  const items      = order.order_items ?? []
-  const statusOpt  = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
-  const scoreCfg   = scoreConfig(score)
+  const callCfg   = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
+  const score     = order.order_risk_analyses?.[0]?.risk_score ?? 50
+  const summary   = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
+  const name      = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
+  const initial   = name.charAt(0).toUpperCase()
+  const phone     = order.customers?.phone ?? order.phone ?? ''
+  const items     = order.order_items ?? []
+  const statusOpt = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
+  const scoreCfg  = scoreConfig(score)
+
+  // ── Lógica del botón de llamada ──
+  const hasAttempts   = (order.call_attempts ?? 0) > 0
+  const isCalling_now = order.call_status === 'calling'
+  const callLabel     = isCalling
+    ? 'Llamando…'
+    : hasAttempts
+      ? 'Rellamar ahora'
+      : 'Llamar ahora'
+  const callIcon = isCalling
+    ? <Spinner color="#0284c7" />
+    : hasAttempts
+      ? <RetryIcon />
+      : <PhoneIcon />
+  const handleCallBtn = () => hasAttempts ? onRetry(order.id) : onCall(order.id)
 
   return (
     <div
       style={{
-        background: '#fff',
-        borderRadius: 16,
+        background: '#fff', borderRadius: 16,
         border: `1px solid ${isNew ? '#2EC4B6' : '#f1f5f9'}`,
         overflow: 'hidden',
         boxShadow: isNew ? '0 0 0 3px rgba(46,196,182,0.08)' : 'none',
@@ -284,17 +270,13 @@ const OrderCard = memo(function OrderCard({
       }}
       className="ped-card"
     >
-      {/* ── Header row ── */}
-      <div
-        onClick={() => onToggle(order.id)}
-        style={{ padding: '16px 20px', cursor: 'pointer', userSelect: 'none' }}
-      >
+      {/* Header */}
+      <div onClick={() => onToggle(order.id)} style={{ padding: '16px 20px', cursor: 'pointer', userSelect: 'none' }}>
         {isNew && (
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 5,
             marginBottom: 10, fontSize: 10, fontWeight: 700, color: '#0f766e',
-            background: '#f0fdf4', padding: '3px 9px', borderRadius: 20,
-            border: '1px solid #bbf7d0',
+            background: '#f0fdf4', padding: '3px 9px', borderRadius: 20, border: '1px solid #bbf7d0',
           }}>
             <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', animation: 'ped-pulse 1.2s infinite' }} />
             NUEVO PEDIDO
@@ -302,17 +284,15 @@ const OrderCard = memo(function OrderCard({
         )}
 
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-          {/* Avatar + info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0, flex: 1 }}>
             <div style={{
               width: 44, height: 44, borderRadius: 12, flexShrink: 0,
               background: score <= 35 ? '#ecfdf5' : score <= 65 ? '#fffbeb' : '#fef2f2',
               border: `1.5px solid ${scoreCfg.bar}26`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 17, fontWeight: 800, color: scoreCfg.color,
-              letterSpacing: '-0.5px',
+              fontSize: 17, fontWeight: 800, color: scoreCfg.color, letterSpacing: '-0.5px',
             }}>
-              {isCalling
+              {isCalling_now
                 ? <div style={{ width: 18, height: 18, border: '2.5px solid #0284c720', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'ped-spin 0.8s linear infinite' }} />
                 : initial
               }
@@ -332,7 +312,6 @@ const OrderCard = memo(function OrderCard({
             </div>
           </div>
 
-          {/* Price + score */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <p style={{ fontSize: 20, fontWeight: 800, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.8px', fontVariantNumeric: 'tabular-nums' }}>
               {Number(order.total_price ?? 0).toFixed(2)}€
@@ -345,13 +324,11 @@ const OrderCard = memo(function OrderCard({
         </div>
       </div>
 
-      {/* ── Expanded panel ── */}
+      {/* Expanded */}
       {isExpanded && (
         <div style={{
-          borderTop: '1px solid #f8fafc',
-          background: '#fafbfc',
-          padding: '16px 20px',
-          display: 'flex', flexDirection: 'column', gap: 12,
+          borderTop: '1px solid #f8fafc', background: '#fafbfc',
+          padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12,
           animation: 'ped-fadein 0.18s ease',
         }}>
 
@@ -365,8 +342,7 @@ const OrderCard = memo(function OrderCard({
                   borderTop: idx > 0 ? '1px solid #f1f5f9' : 'none',
                 }}>
                   <span style={{ fontSize: 13, color: '#374151', fontWeight: 500 }}>
-                    {item.name}
-                    <span style={{ color: '#94a3b8', fontWeight: 400 }}> ×{item.quantity}</span>
+                    {item.name}<span style={{ color: '#94a3b8', fontWeight: 400 }}> ×{item.quantity}</span>
                   </span>
                   <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontVariantNumeric: 'tabular-nums' }}>
                     {Number(item.price).toFixed(2)}€
@@ -376,9 +352,8 @@ const OrderCard = memo(function OrderCard({
             </Section>
           )}
 
-          {/* AI summary + WhatsApp */}
+          {/* Summary + WhatsApp */}
           <div className="ped-grid2" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-            {/* Summary */}
             <Section title="Resumen IA">
               <p style={{ fontSize: 13, color: summary ? '#374151' : '#94a3b8', lineHeight: 1.65, margin: 0, fontStyle: summary ? 'normal' : 'italic' }}>
                 {summary ?? 'La llamada aún no se ha realizado.'}
@@ -391,23 +366,14 @@ const OrderCard = memo(function OrderCard({
               )}
             </Section>
 
-            {/* WhatsApp */}
             <div style={{ background: '#fff', borderRadius: 12, padding: 14, border: '1px solid #f1f5f9' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a">
-                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
-                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
-                  </svg>
+                  <WhatsAppIcon />
                   <span style={{ fontSize: 11, fontWeight: 700, color: '#15803d' }}>WhatsApp IA</span>
                 </div>
                 {!waMsg && (
-                  <ActionBtn
-                    onClick={() => onGenerateWa(order)}
-                    disabled={isLoadingWa}
-                    variant="ghost"
-                    small
-                  >
+                  <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost" small>
                     {isLoadingWa ? 'Generando…' : 'Generar'}
                   </ActionBtn>
                 )}
@@ -460,35 +426,32 @@ const OrderCard = memo(function OrderCard({
             </div>
           </Section>
 
-          {/* Actions */}
+          {/* ── Acciones ── */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
             <ActionBtn onClick={() => onTranscript(order.id)} variant="default" icon>
               <DocIcon />Transcripción
             </ActionBtn>
+
+            {/* Botón llamar / rellamar */}
             <ActionBtn
-              onClick={() => onRetry(order.id)}
-              disabled={isCalling}
+              onClick={handleCallBtn}
+              disabled={isCalling || isCalling_now}
               variant="blue"
               icon
             >
-              {isCalling
-                ? <><Spinner color="#0284c7" />Llamando…</>
-                : <><RetryIcon />Rellamar ahora</>
-              }
+              {callIcon}{callLabel}
             </ActionBtn>
           </div>
         </div>
       )}
 
-      {/* ── Footer ── */}
+      {/* Footer */}
       <div
         onClick={() => onToggle(order.id)}
         style={{
-          padding: '9px 20px',
-          borderTop: '1px solid #f8fafc',
+          padding: '9px 20px', borderTop: '1px solid #f8fafc',
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          cursor: 'pointer',
-          background: isExpanded ? '#fafbfc' : '#fff',
+          cursor: 'pointer', background: isExpanded ? '#fafbfc' : '#fff',
         }}
       >
         <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -502,7 +465,7 @@ const OrderCard = memo(function OrderCard({
   )
 })
 
-// ─── Small reusable atoms ─────────────────────────────────────────────────────
+// ─── Atoms ────────────────────────────────────────────────────────────────────
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div style={{ background: '#fff', borderRadius: 12, padding: '13px 14px', border: '1px solid #f1f5f9' }}>
@@ -525,28 +488,25 @@ function ActionBtn({
   icon?: boolean
 }) {
   const styles: Record<string, React.CSSProperties> = {
-    default: { background: '#fff', border: '1px solid #f1f5f9', color: '#64748b' },
-    green:   { background: '#16a34a', border: 'none', color: '#fff' },
-    blue:    { background: '#f0f9ff', border: '1px solid #bae6fd', color: '#0284c7' },
-    ghost:   { background: '#fff', border: '1px solid #f1f5f9', color: '#64748b' },
+    default: { background: '#fff',     border: '1px solid #f1f5f9', color: '#64748b' },
+    green:   { background: '#16a34a',  border: 'none',              color: '#fff'    },
+    blue:    { background: '#f0f9ff',  border: '1px solid #bae6fd', color: '#0284c7' },
+    ghost:   { background: '#fff',     border: '1px solid #f1f5f9', color: '#64748b' },
   }
-  const base = styles[variant ?? 'default']
   return (
     <button
       onClick={onClick}
       disabled={disabled}
       className="ped-action-btn"
       style={{
-        ...base,
+        ...styles[variant ?? 'default'],
         padding: small ? '4px 10px' : '10px 14px',
         borderRadius: small ? 20 : 11,
         fontSize: small ? 11 : 13,
         fontWeight: 600, cursor: disabled ? 'not-allowed' : 'pointer',
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        fontFamily: 'inherit',
-        opacity: disabled ? 0.55 : 1,
-        transition: 'all 0.12s',
-        width: '100%',
+        fontFamily: 'inherit', opacity: disabled ? 0.55 : 1,
+        transition: 'all 0.12s', width: '100%',
       }}
     >
       {children}
@@ -558,13 +518,17 @@ function Spinner({ color = '#64748b' }) {
   return (
     <div style={{
       width: 13, height: 13, borderRadius: '50%',
-      border: `2px solid ${color}20`,
-      borderTopColor: color,
-      animation: 'ped-spin 0.7s linear infinite',
-      flexShrink: 0,
+      border: `2px solid ${color}20`, borderTopColor: color,
+      animation: 'ped-spin 0.7s linear infinite', flexShrink: 0,
     }} />
   )
 }
+
+const PhoneIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+  </svg>
+)
 
 const DocIcon = () => (
   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -593,13 +557,13 @@ const ChevronIcon = ({ up }: { up: boolean }) => (
 )
 
 const WhatsAppIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/>
   </svg>
 )
 
-// ─── Global styles (injected once) ───────────────────────────────────────────
+// ─── Global CSS ───────────────────────────────────────────────────────────────
 const GLOBAL_CSS = `
   :root { --header-height: 0px; }
   @keyframes ped-spin    { to { transform: rotate(360deg); } }
@@ -613,16 +577,12 @@ const GLOBAL_CSS = `
   .ped-status-btn:not(:disabled):hover { opacity: 0.8; }
   .ped-filter-btn { transition: all 0.12s; }
   .chip-scroll::-webkit-scrollbar { display: none; }
-  @media(min-width:600px) {
-    .ped-grid2 { grid-template-columns: 1fr 1fr !important; }
-  }
+  @media(min-width:600px) { .ped-grid2 { grid-template-columns: 1fr 1fr !important; } }
 `
 
-function GlobalStyles() {
-  return <style>{GLOBAL_CSS}</style>
-}
+function GlobalStyles() { return <style>{GLOBAL_CSS}</style> }
 
-// ─── Main component ───────────────────────────────────────────────────────────
+// ─── Main ─────────────────────────────────────────────────────────────────────
 export default function PedidosClient({
   initialOrders,
   accountId,
@@ -630,9 +590,6 @@ export default function PedidosClient({
   initialOrders: Order[]
   accountId: string
 }) {
-  // ══════════════════════════════════════════════════════════════════════════
-  // MOTOR SAGRADO — sin tocar: toda la lógica original intacta
-  // ══════════════════════════════════════════════════════════════════════════
   const [orders, setOrders]             = useState<Order[]>(initialOrders)
   const [filter, setFilter]             = useState('all')
   const [search, setSearch]             = useState('')
@@ -646,6 +603,7 @@ export default function PedidosClient({
   const [showTranscript, setShowTranscript] = useState<string | null>(null)
   const supabase = createClient()
 
+  // Realtime
   useEffect(() => {
     const channel = supabase.channel(`pedidos-${accountId}`)
 
@@ -687,7 +645,7 @@ export default function PedidosClient({
     return () => { supabase.removeChannel(channel) }
   }, [accountId])
 
-  // ── memoized filter — avoids recomputing on every unrelated state change ──
+  // Filters
   const filtered = useMemo(() => orders.filter(o => {
     const matchFilter =
       filter === 'all'     ? true :
@@ -705,7 +663,7 @@ export default function PedidosClient({
     [orders]
   )
 
-  // ── Stable callbacks — prevent OrderCard prop changes triggering re-renders ─
+  // Callbacks
   const handleToggle = useCallback((id: string) => {
     setExpanded(prev => prev === id ? null : id)
   }, [])
@@ -732,14 +690,33 @@ export default function PedidosClient({
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
   }, [waMessages])
 
-  const handleRetry = useCallback(async (orderId: string) => {
+  // ── Primera llamada → /api/vapi/call ──
+  const handleCall = useCallback(async (orderId: string) => {
     setLoadingCall(prev => ({ ...prev, [orderId]: true }))
     try {
-      await fetch('/api/vapi/retry', {
+      const res = await fetch('/api/vapi/call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ order_id: orderId }),
       })
+      const data = await res.json()
+      if (!res.ok) console.error('[VAPI call]', data.error)
+    } finally {
+      setLoadingCall(prev => ({ ...prev, [orderId]: false }))
+    }
+  }, [])
+
+  // ── Reintento → /api/vapi/retry ──
+  const handleRetry = useCallback(async (orderId: string) => {
+    setLoadingCall(prev => ({ ...prev, [orderId]: true }))
+    try {
+      const res = await fetch('/api/vapi/retry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId }),
+      })
+      const data = await res.json()
+      if (!res.ok) console.error('[VAPI retry]', data.error)
     } finally {
       setLoadingCall(prev => ({ ...prev, [orderId]: false }))
     }
@@ -771,9 +748,6 @@ export default function PedidosClient({
     setTranscript(prev => ({ ...prev, [orderId]: data ?? null }))
     setShowTranscript(orderId)
   }, [transcript, supabase])
-  // ══════════════════════════════════════════════════════════════════════════
-  // FIN MOTOR SAGRADO
-  // ══════════════════════════════════════════════════════════════════════════
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -784,7 +758,6 @@ export default function PedidosClient({
     <>
       <GlobalStyles />
 
-      {/* Transcript modal */}
       {showTranscript && (
         <TranscriptModal
           data={transcript[showTranscript]}
@@ -794,18 +767,15 @@ export default function PedidosClient({
 
       <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: F }}>
 
-        {/* ── Sticky header ── */}
+        {/* Header */}
         <div style={{
           background: 'rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
+          backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
           padding: '14px clamp(16px,4vw,28px) 0',
           borderBottom: '1px solid #f1f5f9',
           position: 'sticky', top: 'var(--header-height, 0px)', zIndex: 40,
         }}>
           <div style={{ maxWidth: 880, margin: '0 auto' }}>
-
-            {/* Title row */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div>
                 <h1 style={{ fontSize: 'clamp(17px,3.5vw,22px)', fontWeight: 800, color: '#0f172a', margin: '0 0 3px', letterSpacing: '-0.5px' }}>
@@ -818,7 +788,6 @@ export default function PedidosClient({
                   </p>
                 </div>
               </div>
-
               {pendingCount > 0 && (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 7,
@@ -834,24 +803,15 @@ export default function PedidosClient({
             </div>
 
             {/* Search */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              padding: '9px 13px',
-              background: '#f8fafc',
-              border: '1.5px solid #f1f5f9',
-              borderRadius: 12, marginBottom: 10,
-              transition: 'border-color 0.15s, box-shadow 0.15s',
-            }}
-              onFocus={e => {
-                const t = e.currentTarget as HTMLDivElement
-                t.style.borderColor = '#2EC4B6'
-                t.style.boxShadow = '0 0 0 3px rgba(46,196,182,0.1)'
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '9px 13px', background: '#f8fafc',
+                border: '1.5px solid #f1f5f9', borderRadius: 12, marginBottom: 10,
+                transition: 'border-color 0.15s, box-shadow 0.15s',
               }}
-              onBlur={e => {
-                const t = e.currentTarget as HTMLDivElement
-                t.style.borderColor = '#f1f5f9'
-                t.style.boxShadow = 'none'
-              }}
+              onFocus={e => { const t = e.currentTarget as HTMLDivElement; t.style.borderColor = '#2EC4B6'; t.style.boxShadow = '0 0 0 3px rgba(46,196,182,0.1)' }}
+              onBlur={e => { const t = e.currentTarget as HTMLDivElement; t.style.borderColor = '#f1f5f9'; t.style.boxShadow = 'none' }}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
                 <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
@@ -860,17 +820,10 @@ export default function PedidosClient({
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar por nombre o número de pedido…"
-                style={{
-                  border: 'none', background: 'transparent',
-                  fontSize: 13, color: '#0f172a', outline: 'none',
-                  flex: 1, fontFamily: F, fontWeight: 400,
-                }}
+                style={{ border: 'none', background: 'transparent', fontSize: 13, color: '#0f172a', outline: 'none', flex: 1, fontFamily: F, fontWeight: 400 }}
               />
               {search && (
-                <button
-                  onClick={() => setSearch('')}
-                  style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}
-                >
+                <button onClick={() => setSearch('')} style={{ border: 'none', background: 'none', cursor: 'pointer', padding: 2, display: 'flex' }}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">
                     <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
                   </svg>
@@ -878,7 +831,7 @@ export default function PedidosClient({
               )}
             </div>
 
-            {/* Filter tabs */}
+            {/* Filters */}
             <div className="chip-scroll" style={{ display: 'flex', gap: 2, overflowX: 'auto' }}>
               {FILTERS.map(f => (
                 <button
@@ -886,15 +839,12 @@ export default function PedidosClient({
                   onClick={() => setFilter(f.key)}
                   className="ped-filter-btn"
                   style={{
-                    padding: '7px 14px',
-                    borderRadius: '10px 10px 0 0',
-                    fontSize: 12, fontWeight: 600,
-                    border: 'none',
+                    padding: '7px 14px', borderRadius: '10px 10px 0 0',
+                    fontSize: 12, fontWeight: 600, border: 'none',
                     borderBottom: filter === f.key ? '2px solid #2EC4B6' : '2px solid transparent',
                     background: filter === f.key ? 'rgba(46,196,182,0.06)' : 'transparent',
                     color: filter === f.key ? '#0f766e' : '#94a3b8',
-                    cursor: 'pointer', whiteSpace: 'nowrap',
-                    flexShrink: 0, fontFamily: F,
+                    cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0, fontFamily: F,
                   }}
                 >
                   {f.label}
@@ -904,45 +854,30 @@ export default function PedidosClient({
           </div>
         </div>
 
-        {/* ── List ── */}
+        {/* List */}
         <div style={{
           maxWidth: 880, margin: '0 auto',
           padding: 'clamp(14px,3vw,20px) clamp(16px,4vw,28px) 48px',
           display: 'flex', flexDirection: 'column', gap: 10,
         }}>
+          {!mounted && Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} delay={i * 0.04} />)}
 
-          {/* Skeleton loading state */}
-          {!mounted && Array.from({ length: 5 }).map((_, i) => (
-            <SkeletonCard key={i} delay={i * 0.04} />
-          ))}
-
-          {/* Empty state */}
           {mounted && filtered.length === 0 && (
             <div style={{
               textAlign: 'center', padding: '56px 24px',
               background: '#fff', borderRadius: 16, border: '1px solid #f1f5f9',
               animation: 'ped-fadein 0.2s ease',
             }}>
-              <div style={{
-                width: 48, height: 48, borderRadius: 14,
-                background: '#f8fafc', display: 'flex',
-                alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 12px',
-              }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round">
                   <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                 </svg>
               </div>
-              <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>
-                Sin resultados
-              </p>
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>
-                No hay pedidos que coincidan con los filtros actuales
-              </p>
+              <p style={{ fontSize: 14, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.3px' }}>Sin resultados</p>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>No hay pedidos que coincidan con los filtros actuales</p>
             </div>
           )}
 
-          {/* Order cards */}
           {mounted && filtered.map((order, i) => (
             <OrderCard
               key={order.id}
@@ -957,6 +892,7 @@ export default function PedidosClient({
               onToggle={handleToggle}
               onGenerateWa={generateWhatsApp}
               onSendWa={sendWhatsApp}
+              onCall={handleCall}
               onRetry={handleRetry}
               onStatusChange={handleStatusChange}
               onTranscript={handleViewTranscript}

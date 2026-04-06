@@ -14,7 +14,7 @@ export default async function AsistentePage() {
 
   const { data: config } = await admin
     .from('vapi_configs')
-    .select('vapi_phone_number_id, assistant_name, active')
+    .select('vapi_phone_number_id, assistant_name, active, twilio_phone_number, twilio_account_sid, twilio_auth_token')
     .eq('account_id', accountUser!.account_id)
     .single()
 
