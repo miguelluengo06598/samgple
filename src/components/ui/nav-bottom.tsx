@@ -44,87 +44,55 @@ const CSS = `
 @keyframes nb-fadein   {from{opacity:0}to{opacity:1}}
 @keyframes nb-tipslide {from{opacity:0;transform:translateX(-6px) translateY(-50%)}to{opacity:1;transform:translateX(0) translateY(-50%)}}
 @keyframes nb-dock     {from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-@keyframes nb-liveDot  {0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.5)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(34,197,94,0)}}
-@keyframes nb-pulse    {0%,100%{opacity:1}50%{opacity:.5}}
-@keyframes nb-shimmer  {from{background-position:200% center}to{background-position:-200% center}}
+@keyframes nb-liveDot  {0%,100%{opacity:1}50%{opacity:.4}}
 
 .nb-bar{transition:width .2s cubic-bezier(.4,0,.2,1);will-change:width}
 
-/* ── Sidebar nav button ── */
 .nb-btn{
   display:flex;align-items:center;width:100%;
   border:none;background:transparent;cursor:pointer;
   font-family:inherit;outline:none;border-radius:12px;
   -webkit-tap-highlight-color:transparent;
   transition:background .12s,color .12s,transform .1s;
-  position:relative;overflow:hidden;
+  position:relative;
 }
-.nb-btn::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.06),transparent);
-  transform:translateX(-100%);transition:transform .4s;border-radius:12px;
-}
-.nb-btn:hover::before{transform:translateX(100%)}
-.nb-btn:not(.nb-on):hover{background:rgba(255,255,255,.06)!important;color:#e2e8f0!important}
+.nb-btn:not(.nb-on):hover{background:#f8fafc!important;color:#334155!important}
 .nb-btn:active{transform:scale(.97)}
-.nb-btn.nb-on{background:rgba(46,196,182,.15)!important;color:#2EC4B6!important}
-.nb-btn .nb-ic{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
-.nb-btn:hover .nb-ic{transform:scale(1.1) translateX(1px)}
-.nb-btn .nb-k{opacity:0;transition:opacity .12s;transform:scale(.9)}
-.nb-btn:hover .nb-k,.nb-btn.nb-on .nb-k{opacity:1;transform:scale(1)}
+.nb-btn.nb-on{background:#f0fdf4!important;color:#0f766e!important}
+.nb-btn .nb-ic{transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+.nb-btn:hover .nb-ic{transform:scale(1.08)}
+.nb-btn .nb-k{opacity:0;transition:opacity .1s}
+.nb-btn:hover .nb-k,.nb-btn.nb-on .nb-k{opacity:1}
 
-/* ── Quick search ── */
-.nb-qk{
-  transition:all .15s!important;
-}
-.nb-qk:hover{
-  background:rgba(255,255,255,.08)!important;
-  border-color:rgba(255,255,255,.15)!important;
-  color:#e2e8f0!important;
-}
+.nb-qk:hover{background:#f1f5f9!important;border-color:#e2e8f0!important;color:#475569!important}
+.nb-pi:hover{background:#f8fafc!important;color:#0f172a!important}
 
-/* ── Profile/config items ── */
-.nb-pi{transition:background .1s,color .1s}
-.nb-pi:hover{background:#f1f5f9!important;color:#0f172a!important}
-
-/* ── Mobile dock button ── */
 .nb-db{
   display:flex;flex-direction:column;align-items:center;
   justify-content:center;gap:3px;flex:1;height:100%;
-  padding:8px 4px 6px;background:none;border:none;cursor:pointer;
+  padding:8px 6px 6px;background:none;border:none;cursor:pointer;
   -webkit-tap-highlight-color:transparent;outline:none;
-  font-family:inherit;transition:color .15s;border-radius:20px;
-  position:relative;
+  font-family:inherit;transition:color .15s;border-radius:18px;
 }
 .nb-db:active{transform:scale(.88)}
-.nb-db .nb-di{transition:transform .25s cubic-bezier(.34,1.56,.64,1)}
-.nb-db.nb-da .nb-di{transform:scale(1.2) translateY(-2px)}
+.nb-db .nb-di{transition:transform .22s cubic-bezier(.34,1.56,.64,1)}
+.nb-db.nb-da .nb-di{transform:scale(1.18) translateY(-2px)}
 
-/* ── Tooltip ── */
 .nb-tip{
-  position:absolute;left:calc(100% + 12px);top:50%;
+  position:absolute;left:calc(100% + 10px);top:50%;
   transform:translateY(-50%);
   background:#0f172a;color:#f8fafc;
   font-size:12px;font-weight:600;
-  padding:6px 12px;border-radius:10px;white-space:nowrap;
+  padding:6px 11px;border-radius:9px;white-space:nowrap;
   pointer-events:none;z-index:400;
-  display:flex;align-items:center;gap:8px;
-  box-shadow:0 8px 24px rgba(0,0,0,.3);
-  border:1px solid rgba(255,255,255,.08);
-  animation:nb-tipslide .15s cubic-bezier(.22,1,.36,1);
-}
-.nb-tip::before{
-  content:'';position:absolute;right:100%;top:50%;
-  transform:translateY(-50%);
-  border:5px solid transparent;
-  border-right-color:#0f172a;
+  display:flex;align-items:center;gap:7px;
+  box-shadow:0 8px 24px rgba(0,0,0,.15);
+  animation:nb-tipslide .14s cubic-bezier(.22,1,.36,1);
 }
 
-/* ── Scrollbar ── */
 .nb-sc::-webkit-scrollbar{width:2px}
-.nb-sc::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:2px}
+.nb-sc::-webkit-scrollbar-thumb{background:#e2e8f0;border-radius:2px}
 
-/* ── Responsive ── */
 @media(max-width:680px){
   .nb-desk{display:none!important}
   .nb-sp{display:none!important}
@@ -141,7 +109,7 @@ const CSS = `
 const Tip = memo(({ label, sc }: { label: string; sc: string }) => (
   <div className="nb-tip">
     {label}
-    <kbd style={{ fontSize: 10, padding: '2px 6px', borderRadius: 5, background: 'rgba(255,255,255,.1)', border: '1px solid rgba(255,255,255,.15)', fontFamily: 'inherit' }}>{sc}</kbd>
+    <kbd style={{ fontSize: 9, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,.12)', border: '1px solid rgba(255,255,255,.18)', fontFamily: 'inherit' }}>{sc}</kbd>
   </div>
 ))
 Tip.displayName = 'Tip'
@@ -158,9 +126,9 @@ const Cmd = memo(({ open, close, go }: { open: boolean; close: () => void; go: (
 
   if (!open) return null
   return (
-    <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(7,14,28,.65)', backdropFilter: 'blur(16px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 'min(10vh,80px)', animation: 'nb-fadein .12s ease' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, margin: '0 16px', background: '#fff', borderRadius: 24, boxShadow: '0 40px 100px rgba(0,0,0,.25), 0 0 0 1px rgba(0,0,0,.06)', overflow: 'hidden', animation: 'nb-slidein .18s cubic-bezier(.22,1,.36,1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 18px', borderBottom: '1px solid #f0f2f5' }}>
+    <div onClick={close} style={{ position: 'fixed', inset: 0, zIndex: 600, background: 'rgba(15,23,42,.35)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'flex-start', justifyContent: 'center', paddingTop: 'min(10vh,80px)', animation: 'nb-fadein .12s ease' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, margin: '0 16px', background: '#fff', borderRadius: 22, boxShadow: '0 32px 80px rgba(0,0,0,.16), 0 0 0 1px rgba(0,0,0,.06)', overflow: 'hidden', animation: 'nb-slidein .16s cubic-bezier(.22,1,.36,1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '14px 16px', borderBottom: '1px solid #f1f5f9' }}>
           <span style={{ color: '#94a3b8' }}><IcSearch /></span>
           <input ref={ref} value={q} onChange={e => setQ(e.target.value)} placeholder="Navegar a…"
             style={{ flex: 1, border: 'none', outline: 'none', fontSize: 15, color: '#0f172a', fontFamily: 'inherit', fontWeight: 500, background: 'transparent' }}
@@ -170,29 +138,29 @@ const Cmd = memo(({ open, close, go }: { open: boolean; close: () => void; go: (
               if (e.key === 'ArrowUp')   { e.preventDefault(); setCur(c => Math.max(c - 1, 0)) }
               if (e.key === 'Enter' && res[cur]) go(res[cur].href)
             }} />
-          <kbd onClick={close} style={{ fontSize: 11, padding: '3px 8px', borderRadius: 7, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' }}>Esc</kbd>
+          <kbd onClick={close} style={{ fontSize: 11, padding: '3px 7px', borderRadius: 7, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' }}>Esc</kbd>
         </div>
-        <div style={{ padding: '8px 10px 10px' }}>
+        <div style={{ padding: '6px 8px 8px' }}>
           {res.length === 0
             ? <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '20px 0', margin: 0 }}>Sin resultados</p>
             : res.map((l, i) => (
               <button key={l.href} className="nb-pi"
                 onMouseEnter={() => setCur(i)}
                 onClick={() => go(l.href)}
-                style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%', padding: '10px 12px', border: 'none', background: i === cur ? '#f8fafc' : 'transparent', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', outline: i === cur ? '1.5px solid #e8ecf0' : 'none', transition: 'all .1s' }}>
-                <span style={{ width: 32, height: 32, borderRadius: 9, background: i === cur ? '#f0fdf4' : '#f8fafc', border: `1px solid ${i === cur ? '#bbf7d0' : '#f0f2f5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: i === cur ? '#0f766e' : '#64748b', flexShrink: 0, transition: 'all .1s' }}>
+                style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', padding: '10px 11px', border: 'none', background: i === cur ? '#f8fafc' : 'transparent', borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', outline: i === cur ? '1.5px solid #e8ecf0' : 'none', transition: 'all .1s' }}>
+                <span style={{ width: 32, height: 32, borderRadius: 9, background: i === cur ? '#f0fdf4' : '#f8fafc', border: `1px solid ${i === cur ? '#bbf7d0' : '#f0f2f5'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: i === cur ? '#0f766e' : '#64748b', flexShrink: 0 }}>
                   {IC[LINKS.findIndex(x => x.href === l.href)]?.()}
                 </span>
                 <span style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', flex: 1, textAlign: 'left' }}>{l.label}</span>
-                <kbd style={{ fontSize: 10, padding: '2px 7px', borderRadius: 6, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#94a3b8', fontFamily: 'inherit' }}>{l.shortcut}</kbd>
+                <kbd style={{ fontSize: 10, padding: '2px 6px', borderRadius: 5, background: '#f1f5f9', border: '1px solid #e2e8f0', color: '#94a3b8', fontFamily: 'inherit' }}>{l.shortcut}</kbd>
               </button>
             ))
           }
         </div>
-        <div style={{ borderTop: '1px solid #f0f2f5', padding: '8px 18px', display: 'flex', gap: 16 }}>
+        <div style={{ borderTop: '1px solid #f1f5f9', padding: '7px 16px', display: 'flex', gap: 14 }}>
           {[['↵', 'Ir'], ['↑↓', 'Mover'], ['Esc', 'Cerrar']].map(([k, v]) => (
-            <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: '#94a3b8' }}>
-              <kbd style={{ padding: '2px 6px', borderRadius: 5, background: '#f8fafc', border: '1px solid #e8ecf0', fontFamily: 'inherit', fontSize: 10 }}>{k}</kbd>{v}
+            <span key={k} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#94a3b8' }}>
+              <kbd style={{ padding: '1px 5px', borderRadius: 4, background: '#f8fafc', border: '1px solid #e8ecf0', fontFamily: 'inherit', fontSize: 10 }}>{k}</kbd>{v}
             </span>
           ))}
         </div>
@@ -208,26 +176,26 @@ const Tok = memo(({ col, val }: { col: boolean; val: number }) => {
   const pct   = Math.min(val * 100, 100)
 
   if (col) return (
-    <div title={`${val} tokens`} style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(46,196,182,.1)', border: '1px solid rgba(46,196,182,.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2EC4B6', cursor: 'default', margin: '0 auto' }}>
+    <div title={`${val} tokens`} style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(46,196,182,.08)', border: '1.5px solid #bbf7d0', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2EC4B6', cursor: 'default', margin: '0 auto' }}>
       <IcZap />
     </div>
   )
 
   return (
-    <div style={{ borderRadius: 14, padding: '11px 13px', background: 'rgba(255,255,255,.04)', border: '1px solid rgba(255,255,255,.08)' }}>
+    <div style={{ borderRadius: 14, padding: '11px 13px', background: '#f8fafc', border: '1.5px solid #f1f5f9' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(46,196,182,.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2EC4B6' }}><IcZap /></span>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.5)', textTransform: 'uppercase', letterSpacing: '.06em' }}>Tokens</span>
+          <span style={{ width: 22, height: 22, borderRadius: 7, background: 'rgba(46,196,182,.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#2EC4B6' }}><IcZap /></span>
+          <span style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.06em' }}>Tokens</span>
         </div>
-        <span style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', letterSpacing: '-.5px', fontVariantNumeric: 'tabular-nums' }}>{val}</span>
+        <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-.5px', fontVariantNumeric: 'tabular-nums' }}>{val}</span>
       </div>
-      <div style={{ height: 3, borderRadius: 99, background: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
+      <div style={{ height: 3, borderRadius: 99, background: '#e2e8f0', overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${pct}%`, borderRadius: 99, background: `linear-gradient(90deg,${color},${color}bb)`, transition: 'width .4s ease' }} />
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
-        <span style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', fontWeight: 500 }}>Plan Starter</span>
-        <span style={{ fontSize: 10, color: '#2EC4B6', fontWeight: 700 }}>Activo</span>
+        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500 }}>Plan Starter</span>
+        <span style={{ fontSize: 10, color: '#0f766e', fontWeight: 700 }}>Activo</span>
       </div>
     </div>
   )
@@ -244,25 +212,25 @@ const Prof = memo(({ col, close }: { col: boolean; close: () => void }) => {
   }, [close])
 
   return (
-    <div ref={ref} style={{ position: 'absolute', bottom: 'calc(100% + 10px)', left: col ? 'calc(100% + 12px)' : 0, right: col ? 'auto' : 0, minWidth: 220, background: '#fff', borderRadius: 18, boxShadow: '0 24px 64px rgba(0,0,0,.16), 0 0 0 1px rgba(0,0,0,.06)', overflow: 'hidden', animation: 'nb-fadeup .18s cubic-bezier(.22,1,.36,1)', zIndex: 200 }}>
-      <div style={{ padding: '14px 14px 12px', background: 'linear-gradient(135deg,#f8fafc,#f0fdf4)', borderBottom: '1px solid #f0f2f5' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
-          <div style={{ width: 38, height: 38, borderRadius: 12, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0, boxShadow: '0 4px 12px rgba(46,196,182,.3)' }}>M</div>
+    <div ref={ref} style={{ position: 'absolute', bottom: 'calc(100% + 8px)', left: col ? 'calc(100% + 10px)' : 0, right: col ? 'auto' : 0, minWidth: 220, background: '#fff', borderRadius: 18, boxShadow: '0 20px 60px rgba(0,0,0,.12), 0 0 0 1px rgba(0,0,0,.06)', overflow: 'hidden', animation: 'nb-fadeup .16s cubic-bezier(.22,1,.36,1)', zIndex: 200 }}>
+      <div style={{ padding: '13px 13px 12px', background: '#f8fafc', borderBottom: '1px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 11, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0, boxShadow: '0 4px 12px rgba(46,196,182,.25)' }}>M</div>
           <div style={{ minWidth: 0 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0 }}>Miguel L.</p>
             <p style={{ fontSize: 11, color: '#94a3b8', margin: '1px 0 0' }}>soporte@samgple.com</p>
           </div>
         </div>
       </div>
-      <div style={{ padding: '8px 8px 0' }}>
+      <div style={{ padding: '6px 6px 0' }}>
         <Link href="/configuracion" onClick={close} className="nb-pi"
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 11px', borderRadius: 11, color: '#374151', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>
-          <span style={{ color: '#64748b' }}><IcCog /></span>Configuración
+          style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '10px 10px', borderRadius: 10, color: '#374151', textDecoration: 'none', fontSize: 13, fontWeight: 500 }}>
+          <span style={{ color: '#94a3b8' }}><IcCog /></span>Configuración
         </Link>
       </div>
-      <div style={{ borderTop: '1px solid #f0f2f5', padding: '6px 8px 10px', marginTop: 6 }}>
+      <div style={{ borderTop: '1px solid #f1f5f9', padding: '6px 6px 8px', marginTop: 4 }}>
         <button className="nb-pi" onClick={close}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 11px', borderRadius: 11, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444', fontFamily: 'inherit' }}>
+          style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', padding: '10px 10px', borderRadius: 10, background: 'transparent', border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 500, color: '#ef4444', fontFamily: 'inherit' }}>
           <IcLogout />Cerrar sesión
         </button>
       </div>
@@ -283,21 +251,20 @@ const SBtn = memo(({ href, label, sc, idx, active, col, go }: {
         onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
         style={{
           gap: col ? 0 : 10,
-          padding: col ? '10px' : '10px 12px',
+          padding: col ? '10px' : '9px 12px',
           justifyContent: col ? 'center' : 'flex-start',
-          color: active ? '#2EC4B6' : 'rgba(255,255,255,.45)',
+          color: active ? '#0f766e' : '#64748b',
         }}>
-        {/* Active indicator */}
         {active && (
-          <span style={{ position: 'absolute', left: 0, top: '15%', bottom: '15%', width: 3, borderRadius: '0 3px 3px 0', background: 'linear-gradient(180deg,#2EC4B6,#1D9E75)', boxShadow: '0 0 10px rgba(46,196,182,.6)' }} />
+          <span style={{ position: 'absolute', left: 0, top: '20%', bottom: '20%', width: 3, borderRadius: '0 3px 3px 0', background: 'linear-gradient(180deg,#2EC4B6,#1D9E75)' }} />
         )}
-        <span className="nb-ic" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span className="nb-ic" style={{ flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', width: 32, height: 32, borderRadius: 9, background: active ? 'rgba(46,196,182,.1)' : 'transparent', transition: 'background .12s' }}>
           {IC[idx]?.(active)}
         </span>
         {!col && (
           <>
-            <span style={{ fontSize: 13, fontWeight: active ? 700 : 500, letterSpacing: '-.1px', flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</span>
-            <kbd className="nb-k" style={{ fontSize: 9, padding: '2px 6px', borderRadius: 5, background: active ? 'rgba(46,196,182,.15)' : 'rgba(255,255,255,.07)', border: `1px solid ${active ? 'rgba(46,196,182,.3)' : 'rgba(255,255,255,.1)'}`, color: active ? '#2EC4B6' : 'rgba(255,255,255,.3)', fontFamily: 'inherit', flexShrink: 0 }}>{sc}</kbd>
+            <span style={{ fontSize: 13.5, fontWeight: active ? 700 : 500, letterSpacing: '-.1px', flex: 1, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: active ? '#0f766e' : '#334155' }}>{label}</span>
+            <kbd className="nb-k" style={{ fontSize: 9, padding: '2px 5px', borderRadius: 5, background: active ? 'rgba(46,196,182,.1)' : '#f1f5f9', border: `1px solid ${active ? '#bbf7d0' : '#e4e8ed'}`, color: active ? '#0f766e' : '#94a3b8', fontFamily: 'inherit' }}>{sc}</kbd>
           </>
         )}
       </button>
@@ -309,19 +276,19 @@ SBtn.displayName = 'SBtn'
 
 /* ─── Mobile dock ─────────────────────────────────────────────── */
 const Dock = memo(({ ai, go }: { ai: number; go: (i: number) => void }) => (
-  <div className="nb-dk" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, display: 'none', justifyContent: 'center', padding: '0 16px calc(env(safe-area-inset-bottom,12px) + 10px)', pointerEvents: 'none' }}>
+  <div className="nb-dk" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 200, display: 'none', justifyContent: 'center', padding: '0 16px calc(env(safe-area-inset-bottom,10px) + 10px)', pointerEvents: 'none' }}>
     <nav style={{
       pointerEvents: 'all',
       display: 'flex', alignItems: 'stretch',
-      background: '#0c1a2e',
-      backdropFilter: 'blur(30px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-      borderRadius: 28,
-      border: '1px solid rgba(255,255,255,.08)',
-      boxShadow: '0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(255,255,255,.04) inset',
+      background: 'rgba(255,255,255,.97)',
+      backdropFilter: 'blur(20px) saturate(180%)',
+      WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+      borderRadius: 26,
+      border: '1.5px solid #f1f5f9',
+      boxShadow: '0 8px 32px rgba(0,0,0,.1), 0 2px 0 #fff inset',
       padding: '6px 8px',
       gap: 2,
-      animation: 'nb-dock .3s cubic-bezier(.22,1,.36,1)',
+      animation: 'nb-dock .28s cubic-bezier(.22,1,.36,1)',
       width: '100%',
       maxWidth: 380,
     }}>
@@ -330,23 +297,20 @@ const Dock = memo(({ ai, go }: { ai: number; go: (i: number) => void }) => (
         return (
           <button key={l.href} className={`nb-db${a ? ' nb-da' : ''}`} onClick={() => go(i)}
             style={{
-              color: a ? '#2EC4B6' : 'rgba(255,255,255,.35)',
-              background: a ? 'rgba(46,196,182,.1)' : 'transparent',
-              transition: 'background .2s,color .2s',
-              position: 'relative',
+              color: a ? '#0f766e' : '#94a3b8',
+              background: a ? '#f0fdf4' : 'transparent',
+              border: `1.5px solid ${a ? '#bbf7d0' : 'transparent'}`,
+              borderRadius: 18,
+              transition: 'all .18s',
             }}>
-            {/* Active glow dot */}
-            {a && (
-              <span style={{ position: 'absolute', top: 6, right: '50%', transform: 'translateX(50%)', width: 4, height: 4, borderRadius: '50%', background: '#2EC4B6', boxShadow: '0 0 6px rgba(46,196,182,.8)' }} />
-            )}
-            <span className="nb-di" style={{ marginTop: a ? 4 : 0 }}>{IC[i]?.(a)}</span>
+            <span className="nb-di">{IC[i]?.(a)}</span>
             <span style={{
               fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.05em',
               lineHeight: 1, whiteSpace: 'nowrap',
               maxHeight: a ? 14 : 0, overflow: 'hidden',
               opacity: a ? 1 : 0,
               transform: a ? 'translateY(0)' : 'translateY(4px)',
-              transition: 'opacity .2s,transform .2s,max-height .2s',
+              transition: 'opacity .18s,transform .18s,max-height .18s',
             }}>
               {l.label}
             </span>
@@ -410,23 +374,24 @@ export default function NavBottom() {
         style={{
           position: 'fixed', top: 0, left: 0, bottom: 0, width: W, zIndex: 100,
           display: 'flex', flexDirection: 'column',
-          background: 'linear-gradient(180deg, #0d1c2e 0%, #0a1520 100%)',
-          borderRight: '1px solid rgba(255,255,255,.06)',
+          background: '#fff',
+          borderRight: '1.5px solid #f1f5f9',
+          boxShadow: '2px 0 16px rgba(0,0,0,.04)',
         }}>
 
         {/* Logo */}
-        <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: col ? 'center' : 'space-between', padding: col ? '0 12px' : '0 14px', borderBottom: '1px solid rgba(255,255,255,.06)' }}>
+        <div style={{ height: 60, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: col ? 'center' : 'space-between', padding: '0 14px', borderBottom: '1.5px solid #f1f5f9' }}>
           {col
             ? <Link href="/pedidos" style={{ textDecoration: 'none' }}>
-                <div style={{ width: 34, height: 34, borderRadius: 11, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 16px rgba(46,196,182,.35)', color: '#fff' }}><IcZap /></div>
+                <div style={{ width: 34, height: 34, borderRadius: 11, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(46,196,182,.25)', color: '#fff' }}><IcZap /></div>
               </Link>
             : <>
                 <Link href="/pedidos" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 14px rgba(46,196,182,.35)', flexShrink: 0, color: '#fff' }}><IcZap /></div>
-                  <span style={{ fontSize: 15, fontWeight: 800, color: '#f8fafc', letterSpacing: '-.3px' }}>SAMG<span style={{ color: '#2EC4B6' }}>PLE</span></span>
+                  <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(46,196,182,.25)', flexShrink: 0, color: '#fff' }}><IcZap /></div>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', letterSpacing: '-.3px' }}>SAMG<span style={{ color: '#2EC4B6' }}>PLE</span></span>
                 </Link>
                 <button onClick={() => setCol(true)}
-                  style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,.1)', background: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'rgba(255,255,255,.35)', flexShrink: 0, transition: 'all .15s' }}
+                  style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #f1f5f9', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#94a3b8', flexShrink: 0, transition: 'all .15s' }}
                   title="Colapsar [">
                   <IcChevL />
                 </button>
@@ -435,14 +400,14 @@ export default function NavBottom() {
         </div>
 
         {/* Search */}
-        <div style={{ padding: '12px 10px 8px', flexShrink: 0 }}>
+        <div style={{ padding: '12px 12px 6px', flexShrink: 0 }}>
           <button className="nb-qk" onClick={() => setCmd(true)}
-            style={{ width: '100%', padding: col ? '10px' : '8px 12px', borderRadius: 11, border: '1px solid rgba(255,255,255,.08)', background: 'rgba(255,255,255,.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: col ? 'center' : 'flex-start', gap: 8, color: 'rgba(255,255,255,.3)', fontFamily: 'inherit', transition: 'all .15s' }}>
+            style={{ width: '100%', padding: col ? '10px' : '8px 12px', borderRadius: 11, border: '1.5px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: col ? 'center' : 'flex-start', gap: 8, color: '#94a3b8', fontFamily: 'inherit', transition: 'all .15s' }}>
             <IcSearch />
             {!col && (
               <>
                 <span style={{ fontSize: 12, fontWeight: 500, flex: 1, textAlign: 'left' }}>Ir a…</span>
-                <kbd style={{ fontSize: 10, padding: '1px 6px', borderRadius: 5, background: 'rgba(255,255,255,.06)', border: '1px solid rgba(255,255,255,.1)', color: 'rgba(255,255,255,.25)', fontFamily: 'inherit' }}>⌘K</kbd>
+                <kbd style={{ fontSize: 10, padding: '1px 6px', borderRadius: 5, background: '#fff', border: '1.5px solid #e2e8f0', color: '#94a3b8', fontFamily: 'inherit' }}>⌘K</kbd>
               </>
             )}
           </button>
@@ -450,11 +415,11 @@ export default function NavBottom() {
 
         {/* Section label */}
         {!col && (
-          <p style={{ fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,.2)', textTransform: 'uppercase', letterSpacing: '.12em', margin: '4px 0 4px', padding: '0 16px' }}>Menú</p>
+          <p style={{ fontSize: 9, fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase', letterSpacing: '.12em', margin: '4px 0 2px', padding: '0 16px' }}>Menú</p>
         )}
 
         {/* Nav items */}
-        <nav className="nb-sc" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: col ? '4px 10px' : '4px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <nav className="nb-sc" style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', padding: '4px 10px', display: 'flex', flexDirection: 'column', gap: 1 }}>
           {LINKS.map((l, i) => (
             <SBtn key={l.href} href={l.href} label={l.label} sc={l.shortcut} idx={i}
               active={pathname.startsWith(l.href)} col={col}
@@ -463,14 +428,14 @@ export default function NavBottom() {
         </nav>
 
         {/* Footer */}
-        <div style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,.06)', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
+        <div style={{ padding: '10px 12px', borderTop: '1.5px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 8, flexShrink: 0 }}>
 
           {/* Live indicator */}
           {!col && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 11, background: 'rgba(34,197,94,.05)', border: '1px solid rgba(34,197,94,.12)' }}>
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', animation: 'nb-liveDot 2s ease-in-out infinite', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(34,197,94,.8)', flex: 1 }}>Panel activo</span>
-              <span style={{ fontSize: 10, color: 'rgba(255,255,255,.25)', fontWeight: 500 }}>En vivo</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 11px', borderRadius: 11, background: '#f0fdf4', border: '1.5px solid #bbf7d0' }}>
+              <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px rgba(34,197,94,.5)', animation: 'nb-liveDot 2s ease-in-out infinite', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, fontWeight: 600, color: '#15803d', flex: 1 }}>Panel activo</span>
+              <span style={{ fontSize: 10, color: '#4ade80', fontWeight: 500 }}>En vivo</span>
             </div>
           )}
 
@@ -478,7 +443,7 @@ export default function NavBottom() {
 
           {col && (
             <button onClick={() => setCol(false)}
-              style={{ width: '100%', padding: '10px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, background: 'rgba(255,255,255,.04)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'rgba(255,255,255,.35)', transition: 'all .15s' }}>
+              style={{ width: '100%', padding: '9px', border: '1.5px solid #f1f5f9', borderRadius: 10, background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', transition: 'all .15s' }}>
               <IcChevR />
             </button>
           )}
@@ -487,15 +452,15 @@ export default function NavBottom() {
           <div style={{ position: 'relative' }}>
             {prof && <Prof col={col} close={() => setProf(false)} />}
             <button onClick={() => setProf(o => !o)}
-              style={{ display: 'flex', alignItems: 'center', gap: col ? 0 : 10, width: '100%', padding: col ? '8px' : '8px 10px', borderRadius: 12, border: 'none', background: prof ? 'rgba(255,255,255,.08)' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', justifyContent: col ? 'center' : 'flex-start', transition: 'background .12s' }}>
-              <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0, boxShadow: '0 2px 8px rgba(46,196,182,.3)' }}>M</div>
+              style={{ display: 'flex', alignItems: 'center', gap: col ? 0 : 10, width: '100%', padding: col ? '8px' : '8px 10px', borderRadius: 12, border: '1.5px solid transparent', background: prof ? '#f8fafc' : 'transparent', cursor: 'pointer', fontFamily: 'inherit', justifyContent: col ? 'center' : 'flex-start', transition: 'all .12s' }}>
+              <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0, boxShadow: '0 2px 8px rgba(46,196,182,.25)' }}>M</div>
               {!col && (
                 <>
                   <div style={{ flex: 1, textAlign: 'left', minWidth: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Miguel L.</p>
-                    <p style={{ fontSize: 10, color: 'rgba(255,255,255,.3)', margin: 0 }}>Starter</p>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Miguel L.</p>
+                    <p style={{ fontSize: 10, color: '#94a3b8', margin: 0 }}>Starter</p>
                   </div>
-                  <span style={{ color: 'rgba(255,255,255,.25)' }}>{prof ? <IcChevU /> : <IcChevD />}</span>
+                  <span style={{ color: '#94a3b8' }}>{prof ? <IcChevU /> : <IcChevD />}</span>
                 </>
               )}
             </button>
