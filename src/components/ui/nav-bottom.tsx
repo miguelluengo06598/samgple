@@ -258,81 +258,27 @@ export default function NavBottom() {
       {/* ── TOPBAR FLOTANTE (desktop) ── */}
       <header className="nb-topbar" style={{
         position: 'fixed', top: 14, left: '50%', transform: 'translateX(-50%)',
-        zIndex: 100, width: 'calc(100% - 48px)', maxWidth: 900,
-        display: 'flex', alignItems: 'center',
+        zIndex: 100,
+        display: 'inline-flex', alignItems: 'center',
         background: 'rgba(255,255,255,.92)',
         backdropFilter: 'blur(20px) saturate(160%)',
         WebkitBackdropFilter: 'blur(20px) saturate(160%)',
-        borderRadius: 18,
+        borderRadius: 99,
         border: '1.5px solid rgba(0,0,0,.07)',
         boxShadow: '0 4px 24px rgba(0,0,0,.08), 0 1px 0 rgba(255,255,255,.8) inset',
-        padding: '7px 10px',
-        gap: 4,
+        padding: '6px 8px',
+        gap: 2,
       }}>
-
-        {/* Logo */}
-        <Link href="/pedidos" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8, padding: '4px 8px', borderRadius: 11, flexShrink: 0 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 9, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 3px 10px rgba(46,196,182,.3)', color: '#fff' }}>
-            <IcZap />
-          </div>
-          <span style={{ fontSize: 14, fontWeight: 800, color: '#0f172a', letterSpacing: '-.3px' }}>
-            SAMG<span style={{ color: '#2EC4B6' }}>PLE</span>
-          </span>
-        </Link>
-
-        {/* Separador */}
-        <div style={{ width: 1, height: 20, background: '#e8edf2', margin: '0 4px', flexShrink: 0 }} />
-
-        {/* Nav links — centro */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }}>
-          {LINKS.map((l, i) => {
-            const active = pathname.startsWith(l.href)
-            return (
-              <button key={l.href} className={`nb-link${active ? ' nb-on' : ''}`}
-                onClick={() => goItem(l.href)}
-                style={{ color: active ? '#0f766e' : '#64748b' }}>
-                <span style={{ display: 'flex', alignItems: 'center', color: active ? '#0f766e' : '#94a3b8' }}>
-                  {IC[i]?.(active)}
-                </span>
-                {l.label}
-              </button>
-            )
-          })}
-        </nav>
-
-        {/* Derecha: tokens + búsqueda + avatar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-
-          {/* Tokens pill */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 11px', borderRadius: 99, background: 'rgba(46,196,182,.08)', border: '1.5px solid rgba(46,196,182,.18)' }}>
-            <span style={{ color: '#2EC4B6', display: 'flex' }}><IcZap /></span>
-            <span style={{ fontSize: 12, fontWeight: 700, color: '#0f766e' }}>{tokens} tkn</span>
-            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 5px rgba(34,197,94,.5)', animation: 'nb-live 2s ease-in-out infinite' }} />
-          </div>
-
-          {/* Buscar */}
-          <button onClick={() => setCmd(true)}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 11px', borderRadius: 11, border: '1.5px solid #e8edf2', background: '#f8fafc', cursor: 'pointer', color: '#94a3b8', fontFamily: 'inherit', fontSize: 12, fontWeight: 500, transition: 'all .15s', outline: 'none' }}
-            onMouseEnter={e => { const b = e.currentTarget; b.style.background = '#f1f5f9'; b.style.borderColor = '#dde3ea' }}
-            onMouseLeave={e => { const b = e.currentTarget; b.style.background = '#f8fafc'; b.style.borderColor = '#e8edf2' }}>
-            <IcSearch />
-            <kbd style={{ fontSize: 10, padding: '1px 5px', borderRadius: 5, background: '#fff', border: '1px solid #e2e8f0', color: '#94a3b8', fontFamily: 'inherit' }}>⌘K</kbd>
-          </button>
-
-          {/* Avatar */}
-          <div style={{ position: 'relative' }}>
-            {prof && <Prof close={() => setProf(false)} />}
-            <button onClick={() => setProf(o => !o)}
-              style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 10px 5px 5px', borderRadius: 12, border: '1.5px solid #e8edf2', background: prof ? '#f1f5f9' : '#fff', cursor: 'pointer', fontFamily: 'inherit', transition: 'all .12s', outline: 'none' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = '#f8fafc' }}
-              onMouseLeave={e => { if (!prof) (e.currentTarget as HTMLButtonElement).style.background = '#fff' }}>
-              <div style={{ width: 26, height: 26, borderRadius: 8, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, color: '#fff' }}>M</div>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>Miguel L.</span>
-              <span style={{ color: '#94a3b8' }}>{prof ? <IcChevU /> : <IcChevD />}</span>
+        {LINKS.map((l, i) => {
+          const active = pathname.startsWith(l.href)
+          return (
+            <button key={l.href} className={`nb-link${active ? ' nb-on' : ''}`}
+              onClick={() => goItem(l.href)}
+              style={{ color: active ? '#0f766e' : '#64748b', fontFamily: '-apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", sans-serif', letterSpacing: '-.1px', gap: 0 }}>
+              {l.label}
             </button>
-          </div>
-
-        </div>
+          )
+        })}
       </header>
 
       {/* Spacer para que el contenido no quede debajo del navbar */}
