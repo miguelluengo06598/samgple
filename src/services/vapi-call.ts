@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { hasBalance, deductBalance } from '@/services/wallet'
+import { decryptDet, decrypt } from '@/services/crypto'
 
 export const CALL_COST_PER_MIN = 0.22
 export const CALL_COST_FAILED  = 0.05
-export const MAX_CALL_COST     = 2.00  // techo ~9 min
+export const MAX_CALL_COST     = 2.00
 
 interface InitiateCallParams {
   accountId: string
@@ -17,7 +18,6 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
     return NextResponse.json({ error: 'VAPI no configurado en el servidor' }, { status: 500 })
   }
 
-  // Config del cliente — solo necesita phone_number_id y assistant_name (display)
   const { data: vapiConfig } = await admin
     .from('vapi_configs')
     .select('vapi_phone_number_id, assistant_name, active')
@@ -38,7 +38,6 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
     )
   }
 
-  // Pedido + cliente + productos + tienda (para storeName)
   const { data: order } = await admin
     .from('orders')
     .select(`
@@ -53,7 +52,9 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
 
   if (!order) return NextResponse.json({ error: 'Pedido no encontrado' }, { status: 404 })
 
-  const phone = order.phone ?? order.customers?.phone
+  // Desencriptar teléfono
+  const rawPhone = order.phone ?? order.customers?.phone
+  const phone    = decryptDet(rawPhone)
   if (!phone) return NextResponse.json({ error: 'El pedido no tiene teléfono' }, { status: 400 })
 
   const hasFunds = await hasBalance(accountId, CALL_COST_PER_MIN)
@@ -75,17 +76,18 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
     phoneE164 = `+${cleanPhone}`
   }
 
-  // Variables que usa el asistente en VAPI
-  const customerName  = order.customers?.first_name ?? 'Cliente'
-  const storeName     = order.stores?.name ?? 'nuestra tienda'
-  const orderItems    = order.order_items?.map((i: any) => i.name).join(', ') ?? 'tu pedido'
-  const orderAmount   = String(order.total_price ?? 0)
-  const orderNumber   = String(order.order_number ?? order.id.slice(0, 8))
-  const orderAddress  = order.shipping_address?.address1
-    ? `${order.shipping_address.address1}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
+  // Desencriptar datos del cliente
+  const customerFirstName = decrypt(order.customers?.first_name) ?? ''
+  const customerLastName  = decrypt(order.customers?.last_name)  ?? ''
+  const customerName      = customerFirstName || 'Cliente'
+  const storeName         = order.stores?.name ?? 'nuestra tienda'
+  const orderItems        = order.order_items?.map((i: any) => i.name).join(', ') ?? 'tu pedido'
+  const orderAmount       = String(order.total_price ?? 0)
+  const orderNumber       = String(order.order_number ?? order.id.slice(0, 8))
+  const orderAddress      = order.shipping_address?.address1
+    ? `${decrypt(order.shipping_address.address1) ?? ''}${order.shipping_address.city ? ', ' + order.shipping_address.city : ''}`
     : 'tu dirección'
 
-  // Llamada a VAPI — asistente tuyo, número del cliente
   const vapiRes = await fetch('https://api.vapi.ai/call', {
     method: 'POST',
     headers: {
@@ -97,16 +99,15 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
       phoneNumberId: vapiConfig.vapi_phone_number_id,
       customer: {
         number: phoneE164,
-        name:   `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim(),
+        name:   `${customerFirstName} ${customerLastName}`.trim(),
       },
       assistantOverrides: {
-        // Sin firstMessage — ya está configurado en el asistente de VAPI
         variableValues: {
-          customerName,   // {{customerName}}
-          storeName,      // {{storeName}}
-          orderItems,     // {{orderItems}}
-          orderAddress,   // {{orderAddress}}
-          orderAmount,    // {{orderAmount}}
+          customerName,
+          storeName,
+          orderItems,
+          orderAddress,
+          orderAmount,
         },
       },
       metadata: {
@@ -116,7 +117,6 @@ export async function initiateVapiCall({ accountId, orderId, admin }: InitiateCa
     }),
   })
 
-  // VAPI falló — registrar intento + cobrar coste mínimo
   if (!vapiRes.ok) {
     const err = await vapiRes.text()
     console.error('VAPI error:', err)
