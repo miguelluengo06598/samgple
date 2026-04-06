@@ -279,7 +279,7 @@ export default function SoporteClient({ threads, accountId }: { threads: any[]; 
                 {[
                   { icon: '⚡', label: 'Respuesta media',   value: '< 24 horas' },
                   { icon: '📅', label: 'Disponibilidad',    value: 'Lun – Vie, 9h – 18h' },
-                  { icon: '✉️', label: 'Email directo',     value: 'hola@samgple.com' },
+                  { icon: '✉️', label: 'Email directo',     value: 'soporte@samgple.com' },
                 ].map(r => (
                   <div key={r.label} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #f8fafc' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

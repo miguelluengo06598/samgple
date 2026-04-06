@@ -520,7 +520,7 @@ export default function NavWeb() {
               </div>
               <div>
                 <p className="nv-drawer-card-title">¿Tienes dudas?</p>
-                <p className="nv-drawer-card-sub">hola@samgple.com · Resp. en &lt;24h</p>
+                <p className="nv-drawer-card-sub">soporte@samgple.com · Resp. en &lt;24h</p>
               </div>
             </div>
 

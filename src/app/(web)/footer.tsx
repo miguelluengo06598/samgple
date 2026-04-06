@@ -90,7 +90,7 @@ export default function Footer() {
                   { label: 'X', path: 'M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.747l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.912-5.622zm-1.161 17.52h1.833L7.084 4.126H5.117z', isFill: true },
                   { label: 'Email', path: 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7-10-7', isFill: false },
                 ].map(s => (
-                  <a key={s.label} href={s.label === 'Email' ? 'mailto:hola@samgple.com' : '#'} className="ft-social" aria-label={s.label}>
+                  <a key={s.label} href={s.label === 'Email' ? 'mailto:soporte@samgple.com' : '#'} className="ft-social" aria-label={s.label}>
                     <svg width="14" height="14" viewBox="0 0 24 24" fill={s.isFill ? '#94a3b8' : 'none'} stroke={s.isFill ? 'none' : '#94a3b8'} strokeWidth="1.8" strokeLinecap="round">
                       <path d={s.path}/>
                     </svg>
@@ -113,7 +113,7 @@ export default function Footer() {
             <div>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 14px' }}>Soporte</p>
               <Link href="/contacto" className="ft-link">Contacto</Link>
-              <a href="mailto:hola@samgple.com" className="ft-link">hola@samgple.com</a>
+              <a href="mailto:soporte@samgple.com" className="ft-link">soporte@samgple.com</a>
               <Link href="/contacto" className="ft-link">Demo gratuita</Link>
               <Link href="/metodologia" className="ft-link">Documentación</Link>
               <Link href="/configuracion/soporte" className="ft-link">Soporte cliente</Link>

@@ -66,7 +66,7 @@ export default function CookiesPage() {
           <section className="mb-10">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">5. Contacto</h2>
             <p className="text-slate-700 leading-relaxed italic text-slate-500">
-              Para cualquier duda sobre nuestra política de cookies, puedes contactarnos en <strong>hola@samgple.com</strong>.
+              Para cualquier duda sobre nuestra política de cookies, puedes contactarnos en <strong>soporte@samgple.com</strong>.
             </p>
           </section>
 

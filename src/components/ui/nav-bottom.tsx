@@ -222,7 +222,7 @@ const Prof = memo(({ col, close }: { col: boolean; close: () => void }) => {
           <div style={{ width: 34, height: 34, borderRadius: 10, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0 }}>M</div>
           <div style={{ minWidth: 0 }}>
             <p style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Miguel L.</p>
-            <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>hola@samgple.com</p>
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: 0 }}>soporte@samgple.com</p>
           </div>
         </div>
       </div>

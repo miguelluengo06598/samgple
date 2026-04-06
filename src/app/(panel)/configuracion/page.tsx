@@ -244,7 +244,7 @@ export default async function ConfiguracionPage() {
 
           {/* Footer */}
           <p style={{ fontSize: 11, color: '#cbd5e1', textAlign: 'center', margin: '4px 0 0' }}>
-            SAMGPLE · v1.0 · <a href="mailto:hola@samgple.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>hola@samgple.com</a>
+            SAMGPLE · v1.0 · <a href="mailto:soporte@samgple.com" style={{ color: '#94a3b8', textDecoration: 'none' }}>soporte@samgple.com</a>
           </p>
 
         </div>

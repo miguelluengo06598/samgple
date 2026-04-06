@@ -197,7 +197,7 @@ const infoCards = [
     bg: '#f0fdf4',
     border: '#bbf7d0',
     title: 'Email directo',
-    desc: 'hola@samgple.com',
+    desc: 'soporte@samgple.com',
     sub: 'Respondemos en menos de 24h',
   },
   {

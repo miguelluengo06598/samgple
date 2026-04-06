@@ -67,7 +67,7 @@ export default function TerminosPage() {
           </section>
 
           <section className="mb-10 border-t border-slate-200 pt-8 text-center italic text-slate-500">
-            <p>¿Tienes dudas sobre los términos? Escríbenos a <strong>hola@samgple.com</strong></p>
+            <p>¿Tienes dudas sobre los términos? Escríbenos a <strong>soporte@samgple.com</strong></p>
           </section>
 
         </div>
