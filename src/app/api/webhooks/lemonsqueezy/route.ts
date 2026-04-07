@@ -7,13 +7,13 @@ export const runtime = 'nodejs'
 
 // Variant ID → tokens que se añaden
 const PACK_TOKENS: Record<string, number> = {
-  '1499065': 20,   // Pack Starter — 19.99€
+  '1499184': 20,   // Pack Starter — 19.99€
   '1499070': 44,   // Pack Pro    — 39.99€
   '1499072': 100,  // Pack Business — 89.99€
 }
 
 const PACK_NAMES: Record<string, string> = {
-  '1499065': 'Pack Starter (20 tokens)',
+  '1499184': 'Pack Starter (20 tokens)',
   '1499070': 'Pack Pro (44 tokens)',
   '1499072': 'Pack Business (100 tokens)',
 }
