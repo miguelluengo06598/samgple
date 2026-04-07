@@ -59,23 +59,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/configuracion?error=no_account`)
   }
 
-  // Guardar tienda con access_token encriptado
+  // Guardar tienda — onConflict por account_id + shopify_domain
+  // permite que un cliente tenga múltiples tiendas distintas
   const { error: storeError } = await adminSupabase
     .from('stores')
     .upsert({
-      account_id:    accountUser.account_id,
+      account_id:     accountUser.account_id,
       shopify_domain: shop,
       name:           shopInfo.name,
-      access_token:   encrypt(access_token),   // ← encriptado
+      access_token:   encrypt(access_token),
       status:         'active',
-    }, { onConflict: 'shopify_domain' })
+    }, { onConflict: 'account_id,shopify_domain' })
 
   if (storeError) {
     console.error('Error guardando tienda:', storeError)
     return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/configuracion?error=store_save`)
   }
 
-  // Registrar webhooks — usar el token en claro (aún no guardado encriptado en memoria)
+  // Registrar webhooks
   await registerWebhooks(shop, access_token)
 
   const response = NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/configuracion?success=shopify_connected`)
@@ -85,7 +86,7 @@ export async function GET(request: NextRequest) {
 }
 
 async function registerWebhooks(shop: string, accessToken: string) {
-  const appUrl  = process.env.NEXT_PUBLIC_APP_URL
+  const appUrl   = process.env.NEXT_PUBLIC_APP_URL
   const webhooks = [
     { topic: 'orders/create',  address: `${appUrl}/api/webhooks/shopify/orders-create` },
     { topic: 'orders/updated', address: `${appUrl}/api/webhooks/shopify/orders-updated` },
