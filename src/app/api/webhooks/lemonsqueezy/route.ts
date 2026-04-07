@@ -43,12 +43,25 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, skipped: true })
   }
 
-  const firstItem = order.attributes?.first_order_item
-  const variantId = String(firstItem?.variant_id ?? '')
+  const lemonOrderId = String(order.id)
+  const firstItem    = order.attributes?.first_order_item
+  const variantId    = String(firstItem?.variant_id ?? '')
 
   const admin = createAdminClient()
 
-  // Buscar pack en BD por variant_id — dinámico desde el admin
+  // ── Idempotencia con tabla dedicada ──────────────────────
+  const { data: existing } = await admin
+    .from('lemon_orders_processed')
+    .select('lemon_order_id')
+    .eq('lemon_order_id', lemonOrderId)
+    .single()
+
+  if (existing) {
+    console.log(`[LemonSqueezy] Pedido ya procesado: ${lemonOrderId}`)
+    return NextResponse.json({ ok: true, duplicate: true })
+  }
+
+  // ── Buscar pack en BD por variant_id ─────────────────────
   const { data: pack } = await admin
     .from('token_packs')
     .select('tokens, name')
@@ -64,12 +77,14 @@ export async function POST(request: NextRequest) {
   const tokens   = pack.tokens
   const packName = pack.name
 
+  // ── Email del comprador ───────────────────────────────────
   const email = order.attributes?.user_email ?? ''
   if (!email) {
     console.error('[LemonSqueezy] Sin email en el pedido')
     return NextResponse.json({ error: 'Sin email' }, { status: 400 })
   }
 
+  // ── Buscar usuario ────────────────────────────────────────
   const { data: authUser } = await admin.auth.admin.listUsers()
   const user = authUser?.users?.find(u => u.email === email)
 
@@ -77,11 +92,12 @@ export async function POST(request: NextRequest) {
     console.error(`[LemonSqueezy] Usuario no encontrado: ${email}`)
     await admin.from('pending_token_purchases').insert({
       email, variant_id: variantId, tokens,
-      lemon_order_id: String(order.id), lemon_order_data: order,
+      lemon_order_id: lemonOrderId, lemon_order_data: order,
     }).catch(() => null)
     return NextResponse.json({ ok: true, pending: true })
   }
 
+  // ── Buscar account ────────────────────────────────────────
   const { data: accountUser } = await admin
     .from('account_users').select('account_id').eq('user_id', user.id).single()
 
@@ -90,18 +106,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Sin cuenta' }, { status: 400 })
   }
 
-  const lemonOrderId = String(order.id)
-  const { data: existing } = await admin
-    .from('wallet_movements').select('id')
-    .eq('account_id', accountUser.account_id)
-    .contains('metadata', { lemon_order_id: lemonOrderId })
-    .single()
+  // ── Registrar pedido como procesado ANTES de añadir tokens
+  // para evitar doble procesamiento en caso de error parcial
+  const { error: insertError } = await admin
+    .from('lemon_orders_processed')
+    .insert({
+      lemon_order_id: lemonOrderId,
+      account_id:     accountUser.account_id,
+      tokens,
+    })
 
-  if (existing) {
-    console.log(`[LemonSqueezy] Pedido ya procesado: ${lemonOrderId}`)
+  if (insertError) {
+    // Si falla el insert (ej: duplicate key) → ya fue procesado
+    console.log(`[LemonSqueezy] Pedido ya procesado (race condition): ${lemonOrderId}`)
     return NextResponse.json({ ok: true, duplicate: true })
   }
 
+  // ── Añadir tokens al wallet ───────────────────────────────
   await addBalance(
     accountUser.account_id, tokens, 'token_purchase',
     `Compra ${packName}`,
