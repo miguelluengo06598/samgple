@@ -158,8 +158,24 @@ export default function MetodologiaPage() {
 
         .sp-flow-dot { position:absolute;top:50%;width:10px;height:10px;border-radius:50%;transform:translateY(-50%);animation:sp-dot 2s ease-in-out infinite; }
 
-        @media(max-width:900px) { .sp-steps-layout { grid-template-columns:1fr !important; } .sp-step-sidebar { display:none !important; } .sp-grid-3 { grid-template-columns:1fr 1fr !important; } }
-        @media(max-width:640px) { .sp-grid-3 { grid-template-columns:1fr !important; } .sp-flow-nodes { gap:8px !important; } .sp-score-grid { grid-template-columns:1fr 1fr !important; } .sp-faq-grid { grid-template-columns:1fr !important; } .sp-ctas { flex-direction:column;align-items:stretch; } .sp-btn-primary,.sp-btn-ghost { justify-content:center; } }
+        /* Flow responsive */
+        .sp-flow-mobile { display:none !important; }
+        .sp-flow-desktop { display:flex !important; }
+
+        @media(max-width:900px) {
+          .sp-steps-layout { grid-template-columns:1fr !important; }
+          .sp-step-sidebar { display:none !important; }
+          .sp-grid-3 { grid-template-columns:1fr 1fr !important; }
+        }
+        @media(max-width:640px) {
+          .sp-grid-3 { grid-template-columns:1fr !important; }
+          .sp-score-grid { grid-template-columns:1fr 1fr !important; }
+          .sp-faq-grid { grid-template-columns:1fr !important; }
+          .sp-ctas { flex-direction:column;align-items:stretch; }
+          .sp-btn-primary,.sp-btn-ghost { justify-content:center; }
+          .sp-flow-desktop { display:none !important; }
+          .sp-flow-mobile { display:flex !important; }
+        }
       `}</style>
 
       {/* ── HERO ── */}
@@ -169,7 +185,7 @@ export default function MetodologiaPage() {
 
         <div className="sp-max-sm" style={{ textAlign:'center', position:'relative' }}>
           <Reveal>
-            <div className="sp-tag" style={{ animation:'sp-fadein 0.4s ease both' }}>
+            <div className="sp-tag">
               <span style={{ width:6, height:6, borderRadius:'50%', background:'#6366f1', animation:'sp-pulse 2s infinite' }} />
               Metodología
             </div>
@@ -293,9 +309,9 @@ export default function MetodologiaPage() {
           </div>
 
           {/* Mobile step cards */}
-          <div style={{ marginTop:16 }}>
+          <div style={{ marginTop:16, display:'none' }} className="sp-mobile-cards">
             {STEPS.map((s,i) => (
-              <div key={i} className="sp-card" style={{ marginBottom:12, borderColor:`${s.color}20`, display:'none' }}>
+              <div key={i} className="sp-card" style={{ marginBottom:12, borderColor:`${s.color}20` }}>
                 <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:14 }}>
                   <div style={{ width:42, height:42, borderRadius:13, background:`${s.color}12`, border:`1.5px solid ${s.color}30`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={s.color} strokeWidth="2" strokeLinecap="round"><path d={s.icon}/></svg>
@@ -326,20 +342,22 @@ export default function MetodologiaPage() {
             </Reveal>
           </div>
           <Reveal delay={0.08}>
-            <div className="sp-flow-nodes" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'clamp(8px,3vw,24px)', flexWrap:'nowrap', overflowX:'auto', paddingBottom:8 }}>
+
+            {/* DESKTOP: horizontal */}
+            <div className="sp-flow-desktop" style={{ alignItems:'center', justifyContent:'center', gap:0 }}>
               {FLOW.map((node,i,arr) => (
                 <div key={i} style={{ display:'flex', alignItems:'center', gap:0 }}>
-                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10, minWidth:'clamp(60px,8vw,90px)' }}>
-                    <div style={{ width:'clamp(44px,6vw,56px)', height:'clamp(44px,6vw,56px)', borderRadius:'50%', background:`${node.color}15`, border:`2px solid ${node.color}40`, display:'flex', alignItems:'center', justifyContent:'center', animation:'sp-float 4s ease-in-out infinite', animationDelay:`${i*0.5}s`, boxShadow:`0 0 0 8px ${node.color}08` }}>
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={node.color} strokeWidth="2" strokeLinecap="round"><path d={node.icon}/></svg>
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:10, width:120 }}>
+                    <div style={{ width:56, height:56, borderRadius:'50%', background:`${node.color}15`, border:`2px solid ${node.color}40`, display:'flex', alignItems:'center', justifyContent:'center', animation:'sp-float 4s ease-in-out infinite', animationDelay:`${i*0.5}s`, boxShadow:`0 0 0 8px ${node.color}08`, flexShrink:0 }}>
+                      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={node.color} strokeWidth="2" strokeLinecap="round"><path d={node.icon}/></svg>
                     </div>
                     <div style={{ textAlign:'center' }}>
-                      <p style={{ fontSize:11, fontWeight:800, color:'#fff', margin:'0 0 2px' }}>{node.label}</p>
+                      <p style={{ fontSize:12, fontWeight:800, color:'#fff', margin:'0 0 3px' }}>{node.label}</p>
                       <p style={{ fontSize:9, color:'rgba(255,255,255,0.35)', margin:0, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>{node.sub}</p>
                     </div>
                   </div>
                   {i < arr.length-1 && (
-                    <div style={{ width:'clamp(20px,4vw,40px)', height:2, position:'relative', margin:'0 4px', marginBottom:28, flexShrink:0 }}>
+                    <div style={{ width:28, height:2, position:'relative', margin:'0 4px', marginBottom:32, flexShrink:0 }}>
                       <div style={{ width:'100%', height:'100%', background:`linear-gradient(90deg,${node.color},${arr[i+1].color})`, opacity:0.3, borderRadius:2 }} />
                       <div className="sp-flow-dot" style={{ background:node.color, boxShadow:`0 0 6px ${node.color}`, animationDelay:`${i*0.4}s` }} />
                     </div>
@@ -347,6 +365,27 @@ export default function MetodologiaPage() {
                 </div>
               ))}
             </div>
+
+            {/* MÓVIL: vertical */}
+            <div className="sp-flow-mobile" style={{ flexDirection:'column', alignItems:'center', gap:0 }}>
+              {FLOW.map((node,i,arr) => (
+                <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:'center' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:16, padding:'12px 0', width:'100%', maxWidth:280 }}>
+                    <div style={{ width:50, height:50, borderRadius:'50%', background:`${node.color}15`, border:`2px solid ${node.color}40`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow:`0 0 0 6px ${node.color}08` }}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={node.color} strokeWidth="2" strokeLinecap="round"><path d={node.icon}/></svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize:14, fontWeight:800, color:'#fff', margin:'0 0 2px' }}>{node.label}</p>
+                      <p style={{ fontSize:10, color:'rgba(255,255,255,0.4)', margin:0, fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>{node.sub}</p>
+                    </div>
+                  </div>
+                  {i < arr.length-1 && (
+                    <div style={{ width:2, height:20, background:`linear-gradient(180deg,${node.color},${arr[i+1].color})`, opacity:0.35, borderRadius:2 }} />
+                  )}
+                </div>
+              ))}
+            </div>
+
           </Reveal>
         </div>
       </section>
