@@ -25,14 +25,27 @@ export async function GET(request: NextRequest) {
 }
 
 export async function PATCH(request: NextRequest) {
-  if (!verifyAdminSecret(request)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!verifyAdminSecret(request)) {
+    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  }
 
   const admin = createAdminClient()
-  const { id, status, admin_note, ai_summary } = await request.json()
+  const { id, status, admin_note, ai_summary, assigned_to } = await request.json()
 
-  if (!id || !status) return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })
+  if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
 
-  // Generar resumen IA si hay nota del admin
+  // --- Solo asignación de operador ---
+  if (assigned_to !== undefined && !status) {
+    await admin
+      .from('call_requests')
+      .update({ assigned_to, updated_at: new Date().toISOString() })
+      .eq('id', id)
+    return NextResponse.json({ ok: true })
+  }
+
+  if (!status) return NextResponse.json({ error: 'Falta status' }, { status: 400 })
+
+  // --- Generar resumen IA ---
   let finalSummary = ai_summary
   if (admin_note && !ai_summary) {
     try {
@@ -49,10 +62,7 @@ export async function PATCH(request: NextRequest) {
           messages: [
             {
               role: 'system',
-              content: `Eres un asistente que convierte notas internas de un operador de eCommerce en mensajes claros y profesionales para el cliente. 
-El cliente verá este texto como resumen de la llamada.
-Escribe en español, tono amigable y natural. Máximo 3 frases.
-No menciones que es una nota interna. No uses tecnicismos.`,
+              content: `Eres un asistente que convierte notas internas de un operador de eCommerce en mensajes claros y profesionales para el cliente. El cliente verá este texto como resumen de la llamada. Escribe en español, tono amigable y natural. Máximo 3 frases. No menciones que es una nota interna. No uses tecnicismos.`,
             },
             {
               role: 'user',
@@ -68,17 +78,20 @@ No menciones que es una nota interna. No uses tecnicismos.`,
     }
   }
 
-  // Actualizar solicitud
+  // --- Actualizar call_request ---
   await admin.from('call_requests').update({
     status,
     admin_note,
-    ai_summary:  finalSummary,
-    updated_at:  new Date().toISOString(),
+    ai_summary: finalSummary,
+    updated_at: new Date().toISOString(),
   }).eq('id', id)
 
-  // Actualizar estado del pedido según resultado
+  // --- Actualizar pedido ---
   const { data: callReq } = await admin
-    .from('call_requests').select('order_id').eq('id', id).single()
+    .from('call_requests')
+    .select('order_id')
+    .eq('id', id)
+    .single()
 
   if (callReq?.order_id) {
     const orderUpdates: any = {
