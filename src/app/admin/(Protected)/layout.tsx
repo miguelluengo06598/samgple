@@ -1,6 +1,7 @@
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import AdminLogoutButton from './logout-button'
 
 const NAV = [
   { href: '/admin/stats',      label: 'Resumen',    color: '#2EC4B6', icon: 'M3 3h7v7H3z M14 3h7v7h-7z M3 14h7v7H3z M14 14h7v7h-7z' },
@@ -16,56 +17,51 @@ const NAV = [
 
 const F = "'DM Sans', system-ui, sans-serif"
 
-export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+export default async function AdminProtectedLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies()
   const secret = cookieStore.get('admin_secret')?.value
 
-  // Si no está autenticado, redirigir a login
-  // El layout de login NO debe estar aquí — login está fuera de este layout
   if (secret !== process.env.ADMIN_SECRET) {
     redirect('/admin/login')
   }
 
   return (
     <html lang="es">
-      <body style={{ margin: 0, padding: 0, fontFamily: F, background: '#f1f5f9' }}>
+      <body style={{ margin: 0, padding: 0, background: '#f1f5f9' }}>
         <style>{`
           @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
           *, *::before, *::after { box-sizing: border-box; }
+          body { font-family: 'DM Sans', system-ui, sans-serif; }
           @keyframes adm-pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
           .adm-nav-link {
-            transition: all .15s; text-decoration: none;
-            display: flex; align-items: center; gap: 10px;
-            padding: 9px 12px; border-radius: 14px;
-            font-family: ${F};
+            text-decoration: none; display: flex; align-items: center; gap: 10px;
+            padding: 9px 12px; border-radius: 14px; transition: background .15s;
           }
           .adm-nav-link:hover { background: rgba(0,0,0,.03); }
-          .adm-logout {
-            display: flex; align-items: center; gap: 8px;
-            padding: 10px 12px; border-radius: 14px;
-            border: 1.5px solid #fecaca; background: #fff;
-            color: #dc2626; cursor: pointer; font-size: 13px;
-            font-weight: 700; width: 100%; margin-top: 8px;
-            transition: all .15s; font-family: ${F};
-          }
-          .adm-logout:hover { background: #fef2f2; }
           @media(max-width:767px) {
-            .adm-sidebar { left: -260px !important; }
-            .adm-main { margin-left: 0 !important; padding: 20px 16px !important; }
+            .adm-sidebar { display: none; }
+            .adm-main { margin-left: 0 !important; padding: 16px !important; }
           }
           @media(min-width:768px) {
-            .adm-sidebar { left: 0 !important; }
+            .adm-sidebar { display: flex; }
             .adm-main { margin-left: 240px; }
           }
         `}</style>
 
         <div style={{ display: 'flex', minHeight: '100vh' }}>
-          <aside className="adm-sidebar" style={{ position: 'fixed', top: 0, bottom: 0, width: 240, background: '#fff', borderRight: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', padding: '0 10px 16px', zIndex: 50 }}>
+          {/* Sidebar */}
+          <aside className="adm-sidebar" style={{
+            position: 'fixed', top: 0, left: 0, bottom: 0, width: 240,
+            background: '#fff', borderRight: '1px solid #f1f5f9',
+            flexDirection: 'column', padding: '0 10px 16px', zIndex: 50,
+          }}>
             {/* Logo */}
             <div style={{ padding: '20px 10px 16px', borderBottom: '1px solid #f1f5f9', marginBottom: 8 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 38, height: 38, background: 'linear-gradient(135deg,#2EC4B6,#1A9E8F)', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(46,196,182,.35)', flexShrink: 0 }}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+                    <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                  </svg>
                 </div>
                 <div>
                   <p style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', margin: 0, letterSpacing: '-0.4px' }}>SAMGPLE</p>
@@ -91,21 +87,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               ))}
             </nav>
 
-            {/* Logout */}
-            <button className="adm-logout"
-              onClick={async () => {
-                await fetch('/api/admin/auth', { method: 'DELETE' })
-                window.location.href = '/admin/login'
-              }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2" strokeLinecap="round">
-                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                <polyline points="16 17 21 12 16 7"/>
-                <line x1="21" y1="12" x2="9" y2="12"/>
-              </svg>
-              Cerrar sesión
-            </button>
+            {/* Logout — Client Component */}
+            <AdminLogoutButton />
           </aside>
 
+          {/* Main */}
           <main className="adm-main" style={{ flex: 1, minHeight: '100vh', padding: 'clamp(20px,3vw,32px)' }}>
             {children}
           </main>
