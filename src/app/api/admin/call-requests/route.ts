@@ -4,9 +4,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET(request: NextRequest) {
   if (!verifyAdminSecret(request)) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-
+  
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('call_requests')
     .select(`
       *,
@@ -20,6 +20,9 @@ export async function GET(request: NextRequest) {
     `)
     .eq('status', 'pending')
     .order('created_at', { ascending: true })
+
+  console.log('call_requests data:', JSON.stringify(data))
+  console.log('call_requests error:', JSON.stringify(error))
 
   return NextResponse.json({ requests: data ?? [] })
 }
