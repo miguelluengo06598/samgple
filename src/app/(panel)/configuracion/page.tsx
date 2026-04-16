@@ -15,14 +15,12 @@ export default async function ConfiguracionPage() {
 
   const [
     { data: account },
-    { data: wallet },
     { data: stores },
     { data: threads },
     { data: invoices },
     { data: vapiConfig },
   ] = await Promise.all([
     admin.from('accounts').select('name,email').eq('id', accountId).single(),
-    admin.from('wallets').select('balance').eq('account_id', accountId).single(),
     admin.from('stores').select('id').eq('account_id', accountId),
     admin.from('support_threads').select('id').eq('account_id', accountId).eq('status', 'open'),
     admin.from('invoice_requests').select('id').eq('account_id', accountId).eq('status', 'pending'),
@@ -31,7 +29,6 @@ export default async function ConfiguracionPage() {
 
   const F               = 'system-ui,-apple-system,sans-serif'
   const initial         = account?.name?.charAt(0).toUpperCase() ?? '?'
-  const balance         = Number(wallet?.balance ?? 0).toFixed(2)
   const openTickets     = threads?.length ?? 0
   const pendingInvoices = invoices?.length ?? 0
   const storeCount      = stores?.length ?? 0
@@ -117,18 +114,6 @@ export default async function ConfiguracionPage() {
                 </div>
               </div>
 
-              {/* Saldo */}
-              <div style={{ display:'flex', alignItems:'center', gap:12, padding:'12px 18px', borderRadius:16, background:'rgba(255,255,255,.07)', border:'1px solid rgba(255,255,255,.1)', alignSelf:'flex-start' }}>
-                <div>
-                  <p style={{ fontSize:10, fontWeight:700, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.1em', margin:'0 0 2px' }}>Tokens</p>
-                  <p style={{ fontSize:'clamp(24px,4vw,30px)', fontWeight:900, color:'#fff', margin:0, letterSpacing:'-1.5px', lineHeight:1 }}>{balance}</p>
-                </div>
-                <div style={{ width:36, height:36, borderRadius:12, background:'rgba(46,196,182,.2)', border:'1px solid rgba(46,196,182,.3)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2EC4B6" strokeWidth="2" strokeLinecap="round">
-                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                  </svg>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -244,7 +229,7 @@ export default async function ConfiguracionPage() {
                 <p style={{ fontSize:10, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.09em', margin:0 }}>Facturación</p>
               </div>
               {[
-                { href:'/configuracion/tokens', label:'Tokens', desc:`${balance} disponibles`, accent:'#d97706', icon:'M12 2a10 10 0 100 20A10 10 0 0012 2z M12 6v6l4 2', badge:balance, badgeColor:'#92400e', badgeBg:'#fef3c7', badgeBorder:'#fde68a' },
+                { href:'/configuracion/suscripcion', label:'Suscripción', desc:'Planes y uso del período', accent:'#d97706', icon:'M13 2L3 14h9l-1 8 10-12h-9l1-8z', badge:null },
                 { href:'/configuracion/facturas', label:'Facturas', desc: pendingInvoices > 0 ? `${pendingInvoices} pendiente${pendingInvoices > 1 ? 's' : ''}` : 'Solicita y gestiona facturas', accent:'#8b5cf6', icon:'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z M14 2v6h6', badge: pendingInvoices > 0 ? String(pendingInvoices) : null, badgeColor:'#6d28d9', badgeBg:'#ede9fe', badgeBorder:'#ddd6fe' },
               ].map((item: any, i, arr) => (
                 <Link key={item.href} href={item.href} className="cfg-link"

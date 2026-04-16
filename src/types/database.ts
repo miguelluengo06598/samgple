@@ -223,6 +223,22 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['wallets']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['wallets']['Insert']>
       }
+      subscriptions: {
+        Row: {
+          id: string
+          account_id: string
+          plan: 'basico' | 'profesional' | 'enterprise'
+          pedidos_usados: number
+          whatsapp_usado: number
+          periodo_inicio: string
+          periodo_fin: string
+          activo: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['subscriptions']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['subscriptions']['Insert']>
+      }
       wallet_movements: {
         Row: {
           id: string
@@ -243,6 +259,14 @@ export type Database = {
       get_account_id: {
         Args: Record<string, never>
         Returns: string
+      }
+      increment_order_usage: {
+        Args: { p_account_id: string }
+        Returns: void
+      }
+      increment_whatsapp_usage: {
+        Args: { p_account_id: string }
+        Returns: void
       }
     }
   }

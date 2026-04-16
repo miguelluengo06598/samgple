@@ -1,11 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { calculateBaseRisk } from './risk-engine'
 import { analyzeOrderWithAI } from './ai-analysis'
-import { deductBalance, hasBalance } from './wallet'
 import { decryptDet, decrypt } from './crypto'
-
-const AI_ANALYSIS_COST_INITIAL   = 0.17
-const AI_ANALYSIS_COST_REANALYSIS = 0.02  // coste reanálisis manual
 
 export async function analyzeOrder(
   orderId: string,
@@ -33,10 +29,6 @@ export async function analyzeOrder(
   // 2. Si ya fue analizado con IA y NO es reanálisis manual → solo reglas, sin IA
   const alreadyAnalyzed = !!order.ai_charged
   const runAI = !alreadyAnalyzed || isManualReanalysis
-
-  const cost = alreadyAnalyzed
-    ? AI_ANALYSIS_COST_REANALYSIS
-    : AI_ANALYSIS_COST_INITIAL
 
   // 3. Desencriptar datos del cliente
   const customer = order.customers
@@ -165,34 +157,7 @@ export async function analyzeOrder(
     return
   }
 
-  // 8. Verificar saldo
-  const hasFunds = await hasBalance(order.account_id, cost)
-  if (!hasFunds) {
-    await saveAnalysis(orderId, order.account_id, {
-      base_score:        baseResult.base_score,
-      ai_score:          0,
-      final_score:       baseResult.base_score,
-      risk_level:        baseResult.risk_level,
-      summary:           'Análisis básico — saldo insuficiente',
-      human_explanation: null,
-      recommendation:    null,
-      customer_message:  null,
-      tags:              baseResult.signals.map(s => s.tag),
-      tagSource:         'rules',
-    })
-    return
-  }
-
-  // 9. Cobrar
-  await deductBalance(
-    order.account_id,
-    cost,
-    'order_analysis_charge',
-    `${isManualReanalysis ? 'Reanálisis IA' : 'Análisis IA'} pedido ${order.order_number ?? order.id}`,
-    { order_id: orderId }
-  )
-
-  // 10. Marcar ai_charged solo en el primer análisis
+  // 8. Marcar ai_charged solo en el primer análisis
   if (!alreadyAnalyzed) {
     await supabase.from('orders').update({ ai_charged: true }).eq('id', orderId)
   }

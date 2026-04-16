@@ -2,10 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
-import { hasBalance, deductBalance } from '@/services/wallet'
-
-const CALL_COST_INITIAL  = 0.5
-const CALL_COST_RETRY    = 0.25
 
 async function getAuthUser() {
   try {
@@ -66,15 +62,6 @@ export async function POST(request: NextRequest) {
 
     // Determinar si es rellamada o primera llamada
     const isRetry = order.call_status === 'no_answer'
-    const cost    = isRetry ? CALL_COST_RETRY : CALL_COST_INITIAL
-
-    // Verificar saldo
-    const hasFunds = await hasBalance(account.id, cost)
-    if (!hasFunds) {
-      return NextResponse.json({
-        error: `Saldo insuficiente (${cost} tokens necesarios)`,
-      }, { status: 402 })
-    }
 
     // Crear solicitud
     const { data: callRequest, error: insertError } = await admin
@@ -95,15 +82,6 @@ export async function POST(request: NextRequest) {
       console.error('Error creando call_request:', insertError)
       return NextResponse.json({ error: insertError.message }, { status: 500 })
     }
-
-    // Cobrar tokens
-    await deductBalance(
-      account.id,
-      cost,
-      'call_request_charge',
-      `${isRetry ? 'Rellamada' : 'Llamada'} pedido ${order.order_number ?? order_id}`,
-      { order_id, call_request_id: callRequest.id, is_retry: isRetry }
-    )
 
     // Actualizar call_status del pedido
     await admin

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeOrder } from './order-analysis'
 import { updateCustomerRiskScore } from './customer-risk'
+import { checkOrderLimit, incrementOrderUsage } from './subscription'
 import {
   encryptCustomer,
   encryptDet,
@@ -23,7 +24,24 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
 
   const { id: storeId, account_id: accountId } = store
 
-  // 2. Crear o actualizar customer
+  // 2. Verificar si el pedido ya existe (los updates no cuentan contra el límite)
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('external_order_id', String(payload.id))
+    .single()
+
+  const isNewOrder = !existingOrder
+
+  if (isNewOrder) {
+    const limitCheck = await checkOrderLimit(accountId)
+    if (!limitCheck.allowed) {
+      throw new Error(`Límite de pedidos: ${limitCheck.reason}`)
+    }
+  }
+
+  // 3. Crear o actualizar customer
   let customerId: string | null = null
 
   if (payload.customer || payload.phone || payload.billing_address?.phone) {
@@ -96,7 +114,7 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     }
   }
 
-  // 3. Crear o actualizar productos
+  // 4. Crear o actualizar productos
   const itemsWithProductId: Array<{
     name:               string
     quantity:           number
@@ -135,7 +153,7 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     })
   }
 
-  // 4. Crear o actualizar el pedido
+  // 5. Crear o actualizar el pedido
   const rawAddress = payload.shipping_address ?? payload.billing_address ?? null
   const phone      = payload.phone
     ?? payload.customer?.phone
@@ -171,7 +189,7 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     throw new Error(`Error guardando pedido: ${orderError?.message}`)
   }
 
-  // 5. Guardar order items (solo en pedidos nuevos)
+  // 6. Guardar order items (solo en pedidos nuevos)
   const { count } = await supabase
     .from('order_items')
     .select('id', { count: 'exact', head: true })
@@ -185,9 +203,16 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
         ...item,
       }))
     )
+
+    // Incrementar contador solo para pedidos realmente nuevos
+    if (isNewOrder) {
+      incrementOrderUsage(accountId).catch(err =>
+        console.error('Error incrementando uso de pedidos:', err)
+      )
+    }
   }
 
-  // 6. Registrar estado inicial en historial
+  // 7. Registrar estado inicial en historial
   await supabase.from('order_status_history').insert({
     order_id:   order.id,
     account_id: accountId,
@@ -196,12 +221,12 @@ export async function syncOrderFromWebhook(payload: any, shopDomain: string) {
     changed_by:  'shopify_webhook',
   })
 
-  // 7. Lanzar análisis automático (sin await para no bloquear el webhook)
+  // 8. Lanzar análisis automático (sin await para no bloquear el webhook)
   analyzeOrder(order.id).catch(err => {
     console.error(`Error analizando pedido ${order.id}:`, err)
   })
 
-  // 8. Actualizar score de riesgo del cliente (sin await — no bloquea)
+  // 9. Actualizar score de riesgo del cliente (sin await — no bloquea)
   if (customerId) {
     updateCustomerRiskScore(customerId).catch(err => {
       console.error(`Error actualizando risk score cliente ${customerId}:`, err)

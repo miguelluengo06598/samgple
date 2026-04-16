@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { deductBalance, hasBalance } from '@/services/wallet'
-
-const REPORT_COST = 0.5
 
 export async function POST(request: NextRequest) {
   try {
@@ -16,9 +13,6 @@ export async function POST(request: NextRequest) {
     if (!accountUser) return NextResponse.json({ error: 'Sin cuenta' }, { status: 403 })
 
     const { data: account } = await admin.from('accounts').select('email, name').eq('id', accountUser.account_id).single()
-
-    const hasFunds = await hasBalance(accountUser.account_id, REPORT_COST)
-    if (!hasFunds) return NextResponse.json({ error: 'Saldo insuficiente (0.5 tokens)' }, { status: 402 })
 
     // Cooldown 48h
     const { data: lastReport } = await admin
@@ -194,8 +188,6 @@ Incluye: resumen ejecutivo (2 frases), puntos positivos, áreas de mejora y exac
       return NextResponse.json({ error: `Error enviando email: ${resendError}` }, { status: 500 })
     }
 
-    // Cobrar y guardar
-    await deductBalance(accountUser.account_id, REPORT_COST, 'report_charge', 'Informe semanal IA', {})
     await admin.from('reports').insert({
       account_id: accountUser.account_id,
       period:     `Semana del ${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES')} al ${new Date().toLocaleDateString('es-ES')}`,

@@ -79,6 +79,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { analyzeOrder }        from './order-analysis'
 import { updateCustomerRiskScore } from './customer-risk'
+import { checkOrderLimit, incrementOrderUsage } from './subscription'
 import { encryptCustomer, encryptDet, encrypt } from './crypto'
 
 export async function syncExternalOrder(
@@ -87,6 +88,23 @@ export async function syncExternalOrder(
   accountId:  string
 ): Promise<{ orderId: string; accountId: string }> {
   const supabase = createAdminClient()
+
+  // ── 0. Verificar límite de pedidos (solo para pedidos nuevos) ─────────────
+  const { data: existingOrder } = await supabase
+    .from('orders')
+    .select('id')
+    .eq('account_id', accountId)
+    .eq('external_order_id', String(payload.id))
+    .single()
+
+  const isNewOrder = !existingOrder
+
+  if (isNewOrder) {
+    const limitCheck = await checkOrderLimit(accountId)
+    if (!limitCheck.allowed) {
+      throw new Error(`Límite de pedidos: ${limitCheck.reason}`)
+    }
+  }
 
   // ── 1. Crear o actualizar cliente ──────────────────────────────────────────
   let customerId: string | null = null
@@ -258,6 +276,13 @@ export async function syncExternalOrder(
         account_id: accountId,
         ...item,
       }))
+    )
+  }
+
+  // ── 5. Incrementar contador de pedidos del período ────────────────────────
+  if (isNewOrder) {
+    incrementOrderUsage(accountId).catch(err =>
+      console.error('Error incrementando uso de pedidos:', err)
     )
   }
 

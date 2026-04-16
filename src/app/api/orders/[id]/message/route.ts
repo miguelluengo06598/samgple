@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { deductBalance, hasBalance } from '@/services/wallet'
-
-const MESSAGE_COST = 0.003
+import { checkWhatsAppLimit, incrementWhatsAppUsage } from '@/services/subscription'
 
 export async function POST(
   request: NextRequest,
@@ -31,8 +29,11 @@ export async function POST(
 
   if (!order) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const hasFunds = await hasBalance(accountUser.account_id, MESSAGE_COST)
-  if (!hasFunds) return NextResponse.json({ error: 'Saldo insuficiente' }, { status: 402 })
+  // Verificar límite de mensajes WhatsApp del plan
+  const waLimit = await checkWhatsAppLimit(accountUser.account_id)
+  if (!waLimit.allowed) {
+    return NextResponse.json({ error: waLimit.reason }, { status: 429 })
+  }
 
   // Generar nuevo mensaje con OpenAI
   const analysis = order.order_risk_analyses?.[0]
@@ -76,13 +77,9 @@ Adapta el tono al estado y riesgo. Si es confirmar o riesgo alto, pide confirmac
   const data = await response.json()
   const newMessage = data.choices?.[0]?.message?.content ?? ''
 
-  // Cobrar
-  await deductBalance(
-    accountUser.account_id,
-    MESSAGE_COST,
-    'order_analysis_charge',
-    `Nuevo mensaje WhatsApp pedido ${order.order_number}`,
-    { order_id: id }
+  // Incrementar contador de WhatsApp del período
+  incrementWhatsAppUsage(accountUser.account_id).catch(err =>
+    console.error('Error incrementando uso WhatsApp:', err)
   )
 
   // Guardar nuevo mensaje en el análisis
