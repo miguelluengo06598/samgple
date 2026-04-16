@@ -11,13 +11,11 @@ interface Order {
   last_call_at?: string
   call_status?: string
   call_attempts?: number
-  call_summary?: string
   total_price?: number
   status?: string
   phone?: string
   customers?: { first_name?: string; last_name?: string; phone?: string }
   order_items?: Array<{ name: string; quantity: number; price: number }>
-  order_risk_analyses?: Array<{ risk_score: number; summary: string }>
 }
 
 const CALL_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; dot: string }> = {
@@ -47,12 +45,6 @@ const FILTERS = [
   { key: 'no_answer', label: 'No contestó' },
   { key: 'cancelled', label: 'Cancelados' },
 ]
-
-function scoreConfig(score: number) {
-  if (score <= 35) return { label: 'Bajo riesgo',  color: '#16a34a', bar: '#22c55e', bg: '#f0fdf4', width: score }
-  if (score <= 65) return { label: 'Riesgo medio', color: '#d97706', bar: '#f59e0b', bg: '#fffbeb', width: score }
-  return               { label: 'Alto riesgo',  color: '#dc2626', bar: '#ef4444', bg: '#fef2f2', width: score }
-}
 
 function fmt(d: string) {
   return new Date(d).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -88,41 +80,6 @@ const Pill = memo(function Pill({ label, color, bg, dot }: { label: string; colo
   )
 })
 
-const RiskBar = memo(function RiskBar({ score }: { score: number }) {
-  const cfg = scoreConfig(score)
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <div style={{ flex: 1, height: 5, borderRadius: 5, background: '#f1f5f9', overflow: 'hidden' }}>
-        <div style={{ height: '100%', width: `${cfg.width}%`, background: cfg.bar, borderRadius: 5, transition: 'width 0.6s cubic-bezier(0.22,1,0.36,1)' }} />
-      </div>
-      <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, whiteSpace: 'nowrap' }}>{score} · {cfg.label}</span>
-    </div>
-  )
-})
-
-const TranscriptModal = memo(function TranscriptModal({ data, onClose }: { data: any; onClose: () => void }) {
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 999, background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', animation: 'ped-fadein 0.15s ease' }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: '24px 24px 0 0', padding: '28px 28px 48px', width: '100%', maxWidth: 580, maxHeight: '75vh', overflowY: 'auto', animation: 'ped-slideup 0.22s cubic-bezier(0.22,1,0.36,1)' }}>
-        <div style={{ width: 40, height: 4, borderRadius: 4, background: '#e2e8f0', margin: '0 auto 24px' }} />
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <span style={{ fontSize: 16, fontWeight: 800, color: '#0f172a', letterSpacing: '-0.3px' }}>Resumen de llamada</span>
-          <button onClick={onClose} style={{ width: 32, height: 32, borderRadius: 10, border: '1px solid #f1f5f9', background: '#f8fafc', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#64748b" strokeWidth="2.5" strokeLinecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        {data?.ai_summary ? (
-          <div style={{ background: '#f0fdf4', borderRadius: 14, padding: '16px', border: '1px solid #bbf7d0' }}>
-            <p style={{ fontSize: 10, fontWeight: 700, color: '#15803d', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Resumen de la llamada</p>
-            <p style={{ fontSize: 14, color: '#374151', margin: 0, lineHeight: 1.7 }}>{data.ai_summary}</p>
-          </div>
-        ) : (
-          <p style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '32px 0' }}>Sin resumen disponible todavía.</p>
-        )}
-      </div>
-    </div>
-  )
-})
 
 interface CardProps {
   order: Order
@@ -130,56 +87,27 @@ interface CardProps {
   isNew: boolean
   waMsg: string | undefined
   isLoadingWa: boolean
-  isRequestingCall: boolean
-  isReanalyzing: boolean
   isSavingStatus: boolean
-  callRequestStatus?: string
   onToggle: (id: string) => void
   onGenerateWa: (order: Order) => void
   onSendWa: (order: Order) => void
-  onRequestCall: (id: string) => void
-  onReanalyze: (id: string) => void
   onStatusChange: (id: string, status: string) => void
-  onTranscript: (id: string) => void
   index: number
 }
 
 const OrderCard = memo(function OrderCard({
-  order, isExpanded, isNew, waMsg,
-  isLoadingWa, isRequestingCall, isReanalyzing, isSavingStatus,
-  callRequestStatus,
-  onToggle, onGenerateWa, onSendWa,
-  onRequestCall, onReanalyze, onStatusChange, onTranscript, index,
+  order, isExpanded, isNew,
+  waMsg, isLoadingWa,
+  isSavingStatus,
+  onToggle, onGenerateWa, onSendWa, onStatusChange, index,
 }: CardProps) {
   const callCfg   = CALL_STATUS_CONFIG[order.call_status ?? 'pending'] ?? CALL_STATUS_CONFIG.pending
-  const score     = order.order_risk_analyses?.[0]?.risk_score ?? 50
-  const summary   = order.call_summary ?? order.order_risk_analyses?.[0]?.summary
   const name      = `${order.customers?.first_name ?? ''} ${order.customers?.last_name ?? ''}`.trim() || 'Cliente'
   const initial   = name.charAt(0).toUpperCase()
   const phone     = order.customers?.phone ?? order.phone ?? ''
+  const telHref   = phone ? `tel:${phone.replace(/[\s\-\(\)]/g, '')}` : undefined
   const items     = order.order_items ?? []
   const statusOpt = ORDER_STATUS_OPTIONS.find(s => s.value === order.status) ?? ORDER_STATUS_OPTIONS[0]
-  const scoreCfg  = scoreConfig(score)
-
-  // Lógica del botón de llamada
-  const callPending   = callRequestStatus === 'pending' || order.call_status === 'pending'
-  const callNoAnswer  = callRequestStatus === 'no_answer' || order.call_status === 'no_answer'
-  const callDone      = ['confirmed', 'cancelled'].includes(callRequestStatus ?? '') || ['confirmed', 'cancelled'].includes(order.call_status ?? '')
-
-  let callBtnLabel = 'Solicitar llamada'
-  let callBtnCost  = '0.6 tkn'
-  let callBtnDisabled = isRequestingCall || callPending
-
-  if (callPending) {
-    callBtnLabel = 'Llamada pendiente'
-  } else if (callNoAnswer) {
-    callBtnLabel = 'Solicitar rellamada'
-    callBtnCost  = '0.2 tkn'
-  } else if (callDone) {
-    callBtnLabel = 'Solicitar nueva llamada'
-    callBtnCost  = '0.6 tkn'
-    callBtnDisabled = isRequestingCall
-  }
 
   return (
     <div
@@ -202,7 +130,7 @@ const OrderCard = memo(function OrderCard({
         )}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0, flex: 1 }}>
-            <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: scoreCfg.bg, border: `2px solid ${scoreCfg.bar}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: scoreCfg.color, letterSpacing: '-0.5px' }}>
+            <div style={{ width: 48, height: 48, borderRadius: 14, flexShrink: 0, background: '#f8fafc', border: '2px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 800, color: '#64748b', letterSpacing: '-0.5px' }}>
               {initial}
             </div>
             <div style={{ minWidth: 0 }}>
@@ -216,8 +144,7 @@ const OrderCard = memo(function OrderCard({
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <p style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', margin: '0 0 3px', letterSpacing: '-1px', fontVariantNumeric: 'tabular-nums' }}>{Number(order.total_price ?? 0).toFixed(2)}€</p>
-            <p style={{ fontSize: 11, color: '#94a3b8', margin: '0 0 8px', fontWeight: 500 }}>#{order.order_number}</p>
-            <RiskBar score={score} />
+            <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 500 }}>#{order.order_number}</p>
           </div>
         </div>
       </div>
@@ -237,36 +164,23 @@ const OrderCard = memo(function OrderCard({
             </Section>
           )}
 
-          <div className="ped-grid2" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12 }}>
-            <Section title="Resumen IA">
-              <p style={{ fontSize: 13, color: summary ? '#374151' : '#94a3b8', lineHeight: 1.7, margin: 0, fontStyle: summary ? 'normal' : 'italic' }}>
-                {summary ?? 'Sin resumen disponible aún.'}
-              </p>
-              {(order.call_attempts ?? 0) > 0 && (
-                <p style={{ fontSize: 11, color: '#94a3b8', margin: '8px 0 0', fontWeight: 500 }}>
-                  {order.call_attempts} intento{order.call_attempts! > 1 ? 's' : ''}{order.last_call_at && ` · ${fmt(order.last_call_at)}`}
-                </p>
-              )}
-            </Section>
-
-            <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #f1f5f9' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                  <WhatsAppIcon />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#15803d' }}>WhatsApp IA</span>
-                </div>
-                {!waMsg && <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost" small>{isLoadingWa ? 'Generando…' : 'Generar'}</ActionBtn>}
+          <div style={{ background: '#fff', borderRadius: 14, padding: 16, border: '1px solid #f1f5f9' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <WhatsAppIcon />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#15803d' }}>WhatsApp</span>
               </div>
-              {waMsg ? (
-                <>
-                  <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.65, margin: '0 0 12px' }}>{waMsg}</p>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <ActionBtn onClick={() => onSendWa(order)} variant="green"><WhatsAppIcon />Enviar</ActionBtn>
-                    <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost">{isLoadingWa ? '…' : 'Regenerar'}</ActionBtn>
-                  </div>
-                </>
-              ) : (!isLoadingWa && <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>Genera un mensaje personalizado para WhatsApp</p>)}
+              {!waMsg && <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost" small>{isLoadingWa ? 'Generando…' : 'Generar'}</ActionBtn>}
             </div>
+            {waMsg ? (
+              <>
+                <p style={{ fontSize: 12, color: '#374151', lineHeight: 1.65, margin: '0 0 12px' }}>{waMsg}</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <ActionBtn onClick={() => onSendWa(order)} variant="green"><WhatsAppIcon />Enviar</ActionBtn>
+                  <ActionBtn onClick={() => onGenerateWa(order)} disabled={isLoadingWa} variant="ghost">{isLoadingWa ? '…' : 'Regenerar'}</ActionBtn>
+                </div>
+              </>
+            ) : (!isLoadingWa && <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>Genera un mensaje personalizado para WhatsApp</p>)}
           </div>
 
           <Section title="Estado del pedido">
@@ -280,37 +194,14 @@ const OrderCard = memo(function OrderCard({
             </div>
           </Section>
 
-          {/* ── Acciones ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-            <ActionBtn onClick={() => onTranscript(order.id)} variant="default" icon>
-              <DocIcon />Resumen
-            </ActionBtn>
-            <ActionBtn onClick={() => onReanalyze(order.id)} disabled={isReanalyzing} variant="purple" icon>
-              {isReanalyzing ? <><Spinner color="#7c3aed" />Analizando…</> : <><BrainIcon />Reanalizar</>}
-            </ActionBtn>
-            <ActionBtn onClick={() => onRequestCall(order.id)} disabled={callBtnDisabled} variant={callPending ? 'ghost' : 'blue'} icon>
-              {isRequestingCall ? <Spinner color="#1d4ed8" /> : <PhoneIcon />}
-              {isRequestingCall ? 'Solicitando…' : callBtnLabel}
-            </ActionBtn>
-          </div>
-
-          {/* Info coste */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 16 }}>
-            <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 500 }}>
-              Reanalizar <strong style={{ color: '#7c3aed' }}>0,02 tkn</strong>
-            </p>
-            <p style={{ fontSize: 11, color: '#94a3b8', margin: 0, fontWeight: 500 }}>
-              Llamada <strong style={{ color: '#1d4ed8' }}>{callBtnCost}</strong>
-            </p>
-          </div>
-
-          {/* Banner llamada pendiente */}
-          {callPending && (
-            <div style={{ background: '#f0f9ff', borderRadius: 12, padding: '12px 16px', border: '1px solid #bae6fd', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#38bdf8', animation: 'ped-pulse 1.5s infinite', flexShrink: 0 }} />
-              <p style={{ fontSize: 12, color: '#0284c7', margin: 0, fontWeight: 600 }}>
-                Tu solicitud de llamada está pendiente — te contactaremos en breve
-              </p>
+          {/* ── Llamar ── */}
+          {telHref ? (
+            <a href={telHref} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1d4ed8', textDecoration: 'none', transition: 'opacity 0.12s' }} className="ped-action-btn">
+              <PhoneIcon />Llamar al cliente
+            </a>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 14px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: '#f8fafc', border: '1px solid #f1f5f9', color: '#94a3b8' }}>
+              <PhoneIcon />Sin número de teléfono
             </div>
           )}
         </div>
@@ -359,11 +250,9 @@ function Spinner({ color = '#64748b' }) {
   return <div style={{ width: 13, height: 13, borderRadius: '50%', border: `2px solid ${color}20`, borderTopColor: color, animation: 'ped-spin 0.7s linear infinite', flexShrink: 0 }} />
 }
 
-const PhoneIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-const DocIcon     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-const BrainIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96-.46 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 1.44-4.14Z"/><path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96-.46 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-1.44-4.14Z"/></svg>
-const ClockIcon   = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-const ChevronIcon = ({ up }: { up: boolean }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">{up ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}</svg>
+const PhoneIcon    = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 10.8 19.79 19.79 0 01.22 2.18 2 2 0 012.18 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.91 7.91a16 16 0 006.16 6.16l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+const ClockIcon    = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+const ChevronIcon  = ({ up }: { up: boolean }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2.5" strokeLinecap="round">{up ? <polyline points="18 15 12 9 6 15"/> : <polyline points="6 9 12 15 18 9"/>}</svg>
 const WhatsAppIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="#16a34a"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.533 5.859L.057 23.428a.75.75 0 00.921.908l5.687-1.488A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.75a9.712 9.712 0 01-4.93-1.344l-.354-.21-3.668.961.976-3.564-.23-.368A9.719 9.719 0 012.25 12C2.25 6.615 6.615 2.25 12 2.25S21.75 6.615 21.75 12 17.385 21.75 12 21.75z"/></svg>
 
 const GLOBAL_CSS = `
@@ -380,7 +269,6 @@ const GLOBAL_CSS = `
   .ped-status-btn:not(:disabled):hover { opacity: 0.8; transform: translateY(-1px); }
   .ped-filter-btn { transition: all 0.12s; }
   .chip-scroll::-webkit-scrollbar { display: none; }
-  @media(min-width:600px) { .ped-grid2 { grid-template-columns: 1fr 1fr !important; } }
 `
 
 export default function PedidosClient({ initialOrders, accountId }: { initialOrders: Order[]; accountId: string }) {
@@ -390,13 +278,8 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
   const [expanded, setExpanded]               = useState<string | null>(null)
   const [waMessages, setWaMessages]           = useState<Record<string, string>>({})
   const [loadingWa, setLoadingWa]             = useState<Record<string, boolean>>({})
-  const [requestingCall, setRequestingCall]   = useState<Record<string, boolean>>({})
-  const [callRequestStatuses, setCallRequestStatuses] = useState<Record<string, string>>({})
-  const [loadingAnalysis, setLoadingAnalysis] = useState<Record<string, boolean>>({})
   const [savingStatus, setSavingStatus]       = useState<Record<string, boolean>>({})
   const [newOrderIds, setNewOrderIds]         = useState<Set<string>>(new Set())
-  const [transcript, setTranscript]           = useState<Record<string, any>>({})
-  const [showTranscript, setShowTranscript]   = useState<string | null>(null)
   const supabase = createClient()
 
   useEffect(() => {
@@ -423,19 +306,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
     })
 
-    // Escuchar cambios en call_requests para actualizar estado del botón
-    channel.on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_requests' }, async (payload) => {
-      const req = payload.new as any
-      if (req.order_id) {
-        setCallRequestStatuses(prev => ({ ...prev, [req.order_id]: req.status }))
-        // Si ya no está pendiente, refrescar el pedido
-        if (req.status !== 'pending') {
-          const order = await fetchDecryptedOrder(req.order_id)
-          if (order) setOrders(prev => prev.map(o => o.id === order.id ? order : o))
-        }
-      }
-    })
-
     channel.subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [accountId])
@@ -446,9 +316,7 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     return matchFilter && matchSearch
   }), [orders, filter, search])
 
-  const pendingCount = useMemo(() => orders.filter(o => o.call_status === 'pending').length, [orders])
-
-  const handleToggle     = useCallback((id: string) => setExpanded(prev => prev === id ? null : id), [])
+  const handleToggle = useCallback((id: string) => setExpanded(prev => prev === id ? null : id), [])
 
   const generateWhatsApp = useCallback(async (order: Order) => {
     setLoadingWa(prev => ({ ...prev, [order.id]: true }))
@@ -465,28 +333,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank')
   }, [waMessages])
 
-  const handleRequestCall = useCallback(async (orderId: string) => {
-    setRequestingCall(prev => ({ ...prev, [orderId]: true }))
-    try {
-      const res  = await fetch('/api/call-requests', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ order_id: orderId }) })
-      const data = await res.json()
-      if (!res.ok) alert(data.error ?? 'Error al solicitar la llamada')
-      else {
-        setCallRequestStatuses(prev => ({ ...prev, [orderId]: 'pending' }))
-        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, call_status: 'pending' } : o))
-      }
-    } finally { setRequestingCall(prev => ({ ...prev, [orderId]: false })) }
-  }, [])
-
-  const handleReanalyze = useCallback(async (orderId: string) => {
-    setLoadingAnalysis(prev => ({ ...prev, [orderId]: true }))
-    try {
-      const res  = await fetch(`/api/orders/${orderId}/analyze`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ manual: true }) })
-      const data = await res.json()
-      if (!res.ok) alert(data.error ?? 'Error al reanalizar')
-    } finally { setLoadingAnalysis(prev => ({ ...prev, [orderId]: false })) }
-  }, [])
-
   const handleStatusChange = useCallback(async (orderId: string, status: string) => {
     setSavingStatus(prev => ({ ...prev, [orderId]: true }))
     try {
@@ -494,13 +340,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status } : o))
     } finally { setSavingStatus(prev => ({ ...prev, [orderId]: false })) }
   }, [])
-
-  const handleViewTranscript = useCallback(async (orderId: string) => {
-    if (transcript[orderId]) { setShowTranscript(orderId); return }
-    const { data } = await supabase.from('call_requests').select('ai_summary, admin_note').eq('order_id', orderId).order('created_at', { ascending: false }).limit(1).single()
-    setTranscript(prev => ({ ...prev, [orderId]: data ?? null }))
-    setShowTranscript(orderId)
-  }, [transcript, supabase])
 
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
@@ -510,7 +349,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
   return (
     <>
       <style>{GLOBAL_CSS}</style>
-      {showTranscript && <TranscriptModal data={transcript[showTranscript]} onClose={() => setShowTranscript(null)} />}
 
       <div style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: F }}>
         <div style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', padding: '16px clamp(16px,4vw,28px) 0', borderBottom: '1px solid #f1f5f9', position: 'sticky', top: 'var(--header-height, 0px)', zIndex: 40 }}>
@@ -523,12 +361,6 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
                   <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontWeight: 500 }}>Tiempo real · {filtered.length} pedidos</p>
                 </div>
               </div>
-              {pendingCount > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', borderRadius: 20, background: '#f0f9ff', border: '1.5px solid #bae6fd' }}>
-                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', animation: 'ped-pulse 1.8s infinite' }} />
-                  <span style={{ fontSize: 12, fontWeight: 700, color: '#0284c7' }}>{pendingCount} llamada{pendingCount > 1 ? 's' : ''} solicitada{pendingCount > 1 ? 's' : ''}</span>
-                </div>
-              )}
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: '#f8fafc', border: '1.5px solid #f1f5f9', borderRadius: 14, marginBottom: 12 }}
@@ -570,17 +402,11 @@ export default function PedidosClient({ initialOrders, accountId }: { initialOrd
               isNew={newOrderIds.has(order.id)}
               waMsg={waMessages[order.id]}
               isLoadingWa={!!loadingWa[order.id]}
-              isRequestingCall={!!requestingCall[order.id]}
-              isReanalyzing={!!loadingAnalysis[order.id]}
-              isSavingStatus={false}
-              callRequestStatus={callRequestStatuses[order.id] ?? order.call_status}
+              isSavingStatus={!!savingStatus[order.id]}
               onToggle={handleToggle}
               onGenerateWa={generateWhatsApp}
               onSendWa={sendWhatsApp}
-              onRequestCall={handleRequestCall}
-              onReanalyze={handleReanalyze}
               onStatusChange={handleStatusChange}
-              onTranscript={handleViewTranscript}
             />
           ))}
         </div>

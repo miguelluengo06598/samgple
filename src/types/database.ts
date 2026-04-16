@@ -66,6 +66,20 @@ export type Database = {
         Insert: Omit<Database['public']['Tables']['stores']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['stores']['Insert']>
       }
+      external_stores: {
+        Row: {
+          id:         string
+          account_id: string
+          name:       string
+          token:      string
+          secret:     string
+          active:     boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['external_stores']['Row'], 'id' | 'created_at' | 'updated_at'>
+        Update: Partial<Database['public']['Tables']['external_stores']['Insert']>
+      }
       customers: {
         Row: {
           id: string
