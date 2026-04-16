@@ -191,8 +191,9 @@ export default async function ConfiguracionPage() {
                 <p style={{ fontSize:10, fontWeight:700, color:'#94a3b8', textTransform:'uppercase', letterSpacing:'.09em', margin:0 }}>Cuenta</p>
               </div>
               {[
-                { href:'/configuracion/cuenta', label:'Mi cuenta', desc:'Nombre, email y contraseña', accent:'#2EC4B6', icon:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 7m-4 0a4 4 0 108 0a4 4 0 10-8 0', badge:null },
-                { href:'/configuracion/tiendas', label:'Tiendas Shopify', desc:`${storeCount} tienda${storeCount !== 1 ? 's' : ''} conectada${storeCount !== 1 ? 's' : ''}`, accent:'#0f766e', icon:'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z M3 6h18', badge: storeCount > 0 ? String(storeCount) : null, badgeColor:'#0f766e', badgeBg:'#f0fdf4', badgeBorder:'#bbf7d0' },
+                { href:'/configuracion/cuenta',           label:'Mi cuenta',       desc:'Nombre, email y contraseña',             accent:'#2EC4B6', icon:'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 7m-4 0a4 4 0 108 0a4 4 0 10-8 0', badge:null },
+                { href:'/configuracion/tiendas',          label:'Tiendas Shopify', desc:`${storeCount} tienda${storeCount !== 1 ? 's' : ''} conectada${storeCount !== 1 ? 's' : ''}`, accent:'#0f766e', icon:'M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z M3 6h18', badge: storeCount > 0 ? String(storeCount) : null, badgeColor:'#0f766e', badgeBg:'#f0fdf4', badgeBorder:'#bbf7d0' },
+                { href:'/configuracion/tiendas-externas', label:'Tiendas externas', desc:'WooCommerce, PrestaShop y otras', accent:'#0284c7', icon:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z', badge:null },
               ].map((item: any, i, arr) => (
                 <Link key={item.href} href={item.href} className="cfg-link"
                   style={{ display:'flex', alignItems:'center', gap:13, padding:'clamp(13px,3vw,17px) clamp(14px,3vw,18px)', borderBottom: i < arr.length - 1 ? '1px solid #f8fafc' : 'none', textDecoration:'none', background:'#fff' }}>
